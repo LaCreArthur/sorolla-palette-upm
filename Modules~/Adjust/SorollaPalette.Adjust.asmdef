@@ -1,0 +1,20 @@
+{
+  "name": "SorollaPalette.Adjust",
+  "rootNamespace": "SorollaPalette.Adjust",
+  "references": [
+    "SorollaPalette.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [
+    "SOROLLA_ADJUST_ENABLED"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
+
+

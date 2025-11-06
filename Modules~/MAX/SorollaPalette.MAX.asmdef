@@ -1,0 +1,19 @@
+{
+  "name": "SorollaPalette.MAX",
+  "rootNamespace": "SorollaPalette.MAX",
+  "references": [
+    "SorollaPalette.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [
+    "SOROLLA_MAX_ENABLED"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
+
