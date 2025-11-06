@@ -16,7 +16,6 @@
     "url": "https://github.com/yourusername/sorolla-palette"
   },
   "dependencies": {
-    "com.google.external-dependency-manager": "https://github.com/googlesamples/unity-jar-resolver.git?path=upm"
   }
 }
 

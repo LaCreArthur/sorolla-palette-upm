@@ -10,6 +10,7 @@ namespace SorollaPalette.Editor
     {
         private const string SETUP_COMPLETE_KEY = "SorollaPalette_SetupComplete";
         private const string OPENUPM_REGISTRY_URL = "https://package.openupm.com";
+        private const string GOOGLE_REGISTRY_URL = "https://unityregistry-pa.googleapis.com/";
         
         static SorollaPaletteSetup()
         {
@@ -76,6 +77,10 @@ namespace SorollaPalette.Editor
                     manifest["scopedRegistries"] = scopedRegistries;
                 }
                 
+                // Check if Google registry already exists
+                bool hasGoogle = false;
+                Dictionary<string, object> googleRegistry = null;
+                
                 // Check if OpenUPM registry already exists
                 bool hasOpenUPM = false;
                 Dictionary<string, object> openUpmRegistry = null;
@@ -85,11 +90,42 @@ namespace SorollaPalette.Editor
                     var registry = reg as Dictionary<string, object>;
                     if (registry != null && registry.ContainsKey("url"))
                     {
-                        if (registry["url"].ToString() == OPENUPM_REGISTRY_URL)
+                        string url = registry["url"].ToString();
+                        if (url == GOOGLE_REGISTRY_URL)
+                        {
+                            hasGoogle = true;
+                            googleRegistry = registry;
+                        }
+                        else if (url == OPENUPM_REGISTRY_URL)
                         {
                             hasOpenUPM = true;
                             openUpmRegistry = registry;
-                            break;
+                        }
+                    }
+                }
+                
+                // Add or update Google registry
+                if (!hasGoogle)
+                {
+                    googleRegistry = new Dictionary<string, object>
+                    {
+                        { "name", "Game Package Registry by Google" },
+                        { "url", GOOGLE_REGISTRY_URL },
+                        { "scopes", new List<object> { "com.google" } }
+                    };
+                    scopedRegistries.Add(googleRegistry);
+                    Debug.Log("[Sorolla Palette] Added Google registry to manifest.json");
+                }
+                else
+                {
+                    // Update existing Google registry scopes
+                    if (googleRegistry.ContainsKey("scopes"))
+                    {
+                        var scopes = googleRegistry["scopes"] as List<object>;
+                        if (scopes != null && !scopes.Contains("com.google"))
+                        {
+                            scopes.Add("com.google");
+                            Debug.Log("[Sorolla Palette] Updated Google registry scopes");
                         }
                     }
                 }
@@ -182,7 +218,7 @@ namespace SorollaPalette.Editor
                 
                 if (!dependencies.ContainsKey("com.google.external-dependency-manager"))
                 {
-                    dependencies["com.google.external-dependency-manager"] = "1.2.183";
+                    dependencies["com.google.external-dependency-manager"] = "https://github.com/googlesamples/unity-jar-resolver.git?path=upm";
                     modified = true;
                     Debug.Log("[Sorolla Palette] Added External Dependency Manager dependency");
                 }

@@ -48,9 +48,10 @@ Create a UPM package providing a complete mobile publisher stack with:
   - `Documentation~/` - These docs
 - [x] Create `package.json` (no dependencies - setup script handles them)
 - [x] Auto-setup script (SorollaPaletteSetup.cs):
+  - Adds Google registry (https://unityregistry-pa.googleapis.com/) for com.google packages
   - Adds OpenUPM scoped registry to project manifest.json
   - Adds GameAnalytics SDK dependency (7.10.6)
-  - Adds External Dependency Manager dependency (1.2.183)
+  - Adds External Dependency Manager dependency (Git URL)
 - [x] Create assembly definition files (.asmdef) for Runtime, Editor, each Module
 - [x] Unity auto-installs GameAnalytics & EDM
 
