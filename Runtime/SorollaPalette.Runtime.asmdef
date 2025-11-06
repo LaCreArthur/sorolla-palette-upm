@@ -1,15 +1,22 @@
 {
-  "name": "SorollaPalette.Runtime",
-  "rootNamespace": "SorollaPalette",
-  "references": [],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "SorollaPalette.Runtime",
+    "rootNamespace": "SorollaPalette",
+    "references": [
+        "GameAnalyticsSDK"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.gameanalytics.sdk",
+            "expression": "",
+            "define": "GAMEANALYTICS_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
 }
-

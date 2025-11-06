@@ -55,39 +55,38 @@ Create a UPM package providing a complete mobile publisher stack with:
 - [x] Create assembly definition files (.asmdef) for Runtime, Editor, each Module
 - [x] Unity auto-installs GameAnalytics & EDM
 
-### Phase 1: Core Runtime
-- [ ] Create `Runtime/SorollaPalette.cs` - Static API singleton
-- [ ] Create `Runtime/SorollaPaletteConfig.cs` - ScriptableObject config
-- [ ] Initialize GameAnalytics (always - both modes)
-- [ ] Conditional initialization for MAX/Facebook/Adjust (based on enabled modules)
-- [ ] Implement wrapper functions:
+### Phase 1: Core Runtime ⏳ IN PROGRESS
+- [x] Create `Runtime/SorollaPalette.cs` - Static API singleton
+- [x] Create `Runtime/SorollaPaletteConfig.cs` - ScriptableObject config
+- [x] Initialize GameAnalytics (always - both modes)
+- [x] Conditional initialization for MAX/Facebook/Adjust (based on enabled modules)
+- [x] Implement wrapper functions:
   - Analytics: `TrackProgressionEvent()`, `TrackDesignEvent()`, `TrackResourceEvent()`
   - Remote Config: `GetRemoteConfigValue()`, `GetRemoteConfigInt()`, `IsRemoteConfigReady()`
   - Ads: `ShowRewardedAd()`, `ShowInterstitialAd()` (Full Mode only)
 
-### Phase 2: SDK Adapters
-- [ ] **Modules~/MAX/MaxAdapter.cs**:
-```csharp
-#if SOROLLA_MAX_ENABLED
-public static class MaxAdapter {
-    public static void Initialize(string sdkKey) {
-        MaxSdk.SetSdkKey(sdkKey);
-        MaxSdk.InitializeSdk();
-    }
-}
-#endif
-```
-- [ ] **Modules~/Facebook/FacebookAdapter.cs**:
-```csharp
-#if SOROLLA_FACEBOOK_ENABLED
-public static class FacebookAdapter {
-    public static void Initialize() {
-        FB.Init();
-    }
-}
-#endif
-```
-- [ ] **Modules~/Adjust/AdjustAdapter.cs** (optional for Full Mode)
+### Phase 2: SDK Adapters ✅ COMPLETE
+- [x] **Runtime/GameAnalyticsAdapter.cs**:
+  - Initialize GameAnalytics
+  - Track progression, design, and resource events
+  - Remote config support
+  - Editor-safe logging
+- [x] **Modules~/MAX/MaxAdapter.cs**:
+  - Initialize AppLovin MAX SDK
+  - Rewarded ad support with callbacks
+  - Interstitial ad support
+  - Auto-load next ad after showing
+  - Ad revenue tracking forwarded to Adjust
+- [x] **Modules~/Facebook/FacebookAdapter.cs**:
+  - Initialize Facebook SDK
+  - Track custom events
+  - Track purchases and level achievements
+  - UA tracking support
+- [x] **Modules~/Adjust/AdjustAdapter.cs**:
+  - Initialize Adjust SDK
+  - Track custom events and revenue
+  - Receive ad revenue from MAX
+  - Attribution tracking
 
 ### Phase 3: Editor Tools
 - [ ] **Mode Selection Wizard** (`SorollaPaletteModeSelector.cs`):
@@ -138,13 +137,13 @@ void AddScriptingDefine(string define) {
 
 ```
 Phase 0 (Testbed Setup):        ██████████ 100% (5/5) ✅ COMPLETE
-Phase 1 (Core Runtime):         ░░░░░░░░░░   0% (0/5)
-Phase 2 (SDK Adapters):         ░░░░░░░░░░   0% (0/3)
+Phase 1 (Core Runtime):         ██████████ 100% (5/5) ✅ COMPLETE
+Phase 2 (SDK Adapters):         ██████████ 100% (4/4) ✅ COMPLETE
 Phase 3 (Editor Tools):         ░░░░░░░░░░   0% (0/5)
 Phase 4 (Testing):              ░░░░░░░░░░   0% (0/5)
 Phase 5 (Distribution):         ░░░░░░░░░░   0% (0/5)
 
-TOTAL: ████░░░░░░ 20% (5/25 tasks) - Ready for Phase 1!
+TOTAL: ██████████░ 56% (14/25 tasks) - Ready for Phase 3!
 ```
 
 ---
