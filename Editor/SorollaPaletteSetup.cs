@@ -89,33 +89,9 @@ namespace SorollaPalette.Editor
         {
             packagesAdded = 0;
             
-            // Add GameAnalytics SDK
-            gameAnalyticsRequest = Client.Add("com.gameanalytics.sdk@7.10.6");
-            EditorApplication.update += CheckGameAnalyticsProgress;
-        }
-        
-        private static void CheckGameAnalyticsProgress()
-        {
-            if (gameAnalyticsRequest == null || !gameAnalyticsRequest.IsCompleted)
-                return;
-            
-            EditorApplication.update -= CheckGameAnalyticsProgress;
-            
-            if (gameAnalyticsRequest.Status == StatusCode.Success)
-            {
-                Debug.Log("[Sorolla Palette] GameAnalytics SDK added successfully.");
-                packagesAdded++;
-                
-                // Now add EDM
-                edmRequest = Client.Add("com.google.external-dependency-manager");
-                EditorApplication.update += CheckEDMProgress;
-            }
-            else if (gameAnalyticsRequest.Status >= StatusCode.Failure)
-            {
-                Debug.LogError($"[Sorolla Palette] Failed to add GameAnalytics SDK: {gameAnalyticsRequest.Error.message}");
-            }
-            
-            gameAnalyticsRequest = null;
+            // Add EDM first (GameAnalytics depends on it)
+            edmRequest = Client.Add("com.google.external-dependency-manager");
+            EditorApplication.update += CheckEDMProgress;
         }
         
         private static void CheckEDMProgress()
@@ -129,7 +105,10 @@ namespace SorollaPalette.Editor
             {
                 Debug.Log("[Sorolla Palette] External Dependency Manager added successfully.");
                 packagesAdded++;
-                Debug.Log($"[Sorolla Palette] Setup complete. {packagesAdded} package(s) added.");
+                
+                // Now add GameAnalytics SDK
+                gameAnalyticsRequest = Client.Add("com.gameanalytics.sdk@7.10.6");
+                EditorApplication.update += CheckGameAnalyticsProgress;
             }
             else if (edmRequest.Status >= StatusCode.Failure)
             {
@@ -137,6 +116,27 @@ namespace SorollaPalette.Editor
             }
             
             edmRequest = null;
+        }
+        
+        private static void CheckGameAnalyticsProgress()
+        {
+            if (gameAnalyticsRequest == null || !gameAnalyticsRequest.IsCompleted)
+                return;
+            
+            EditorApplication.update -= CheckGameAnalyticsProgress;
+            
+            if (gameAnalyticsRequest.Status == StatusCode.Success)
+            {
+                Debug.Log("[Sorolla Palette] GameAnalytics SDK added successfully.");
+                packagesAdded++;
+                Debug.Log($"[Sorolla Palette] Setup complete. {packagesAdded} package(s) added.");
+            }
+            else if (gameAnalyticsRequest.Status >= StatusCode.Failure)
+            {
+                Debug.LogError($"[Sorolla Palette] Failed to add GameAnalytics SDK: {gameAnalyticsRequest.Error.message}");
+            }
+            
+            gameAnalyticsRequest = null;
         }
         
         private static bool AddScopedRegistriesToManifest()
