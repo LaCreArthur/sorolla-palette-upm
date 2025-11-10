@@ -13,7 +13,6 @@ namespace SorollaPalette
     public static class SorollaPalette
     {
         private static SorollaPaletteConfig _Config;
-        private static bool _RemoteConfigReady;
 
         /// <summary>
         ///     Check if Sorolla Palette is initialized
@@ -132,8 +131,6 @@ namespace SorollaPalette
             Debug.Log("[Sorolla Palette] Initializing GameAnalytics...");
 
             GameAnalyticsAdapter.Initialize(_Config.gaGameKey, _Config.gaSecretKey);
-
-            _RemoteConfigReady = false;
         }
 
         /// <summary>
