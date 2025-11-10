@@ -1,9 +1,10 @@
-using UnityEngine;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
-using System.IO;
-using System.Collections.Generic;
+using UnityEngine;
 
 namespace SorollaPalette.Editor
 {
@@ -13,36 +14,35 @@ namespace SorollaPalette.Editor
         private const string SETUP_COMPLETE_KEY = "SorollaPalette_SetupComplete";
         private const string OPENUPM_REGISTRY_URL = "https://package.openupm.com";
         private const string GOOGLE_REGISTRY_URL = "https://unityregistry-pa.googleapis.com/";
-        
-        private static AddRequest gameAnalyticsRequest;
-        private static AddRequest edmRequest;
-        private static int packagesAdded;
-        
+        private const string APPLOVIN_REGISTRY_URL = "https://unity.packages.applovin.com/";
+
+        private static AddRequest _GameAnalyticsRequest;
+        private static AddRequest _EdmRequest;
+        private static AddRequest _MaxRequest;
+        private static int _PackagesAdded;
+
         static SorollaPaletteSetup()
         {
             // Run setup once when package is first imported
-            if (!SessionState.GetBool(SETUP_COMPLETE_KEY, false))
-            {
-                EditorApplication.delayCall += RunSetup;
-            }
+            if (!SessionState.GetBool(SETUP_COMPLETE_KEY, false)) EditorApplication.delayCall += RunSetup;
         }
-        
+
         [MenuItem("Tools/Sorolla Palette/Run Setup (Force)")]
         public static void ForceRunSetup()
         {
             SessionState.SetBool(SETUP_COMPLETE_KEY, false);
             RunSetup();
         }
-        
+
         private static void RunSetup()
         {
             SessionState.SetBool(SETUP_COMPLETE_KEY, true);
-            
+
             Debug.Log("[Sorolla Palette] Running initial setup...");
-            
+
             // First, add scoped registries to manifest (required before adding packages)
-            bool registriesAdded = AddScopedRegistriesToManifest();
-            
+            var registriesAdded = AddScopedRegistriesToManifest();
+
             // Then check if packages need to be added
             if (NeedToAddPackages())
             {
@@ -58,25 +58,25 @@ namespace SorollaPalette.Editor
                 Debug.Log("[Sorolla Palette] All dependencies already configured.");
             }
         }
-        
+
         private static bool NeedToAddPackages()
         {
             // Check if packages are already in manifest
-            string manifestPath = Path.Combine(Application.dataPath, "..", "Packages", "manifest.json");
-            
+            var manifestPath = Path.Combine(Application.dataPath, "..", "Packages", "manifest.json");
+
             try
             {
-                string jsonContent = File.ReadAllText(manifestPath);
+                var jsonContent = File.ReadAllText(manifestPath);
                 var manifest = MiniJson.Deserialize(jsonContent) as Dictionary<string, object>;
-                
+
                 if (manifest == null || !manifest.ContainsKey("dependencies"))
                     return true;
-                
+
                 var dependencies = manifest["dependencies"] as Dictionary<string, object>;
-                
-                bool hasGA = dependencies.ContainsKey("com.gameanalytics.sdk");
-                bool hasEDM = dependencies.ContainsKey("com.google.external-dependency-manager");
-                
+
+                var hasGA = dependencies.ContainsKey("com.gameanalytics.sdk");
+                var hasEDM = dependencies.ContainsKey("com.google.external-dependency-manager");
+
                 return !hasGA || !hasEDM;
             }
             catch
@@ -84,206 +84,273 @@ namespace SorollaPalette.Editor
                 return true;
             }
         }
-        
+
         private static void AddPackagesViaAPI()
         {
-            packagesAdded = 0;
-            
+            _PackagesAdded = 0;
+
             // Add EDM first (GameAnalytics depends on it)
-            edmRequest = Client.Add("com.google.external-dependency-manager");
+            _EdmRequest = Client.Add("com.google.external-dependency-manager");
             EditorApplication.update += CheckEDMProgress;
         }
-        
+
         private static void CheckEDMProgress()
         {
-            if (edmRequest == null || !edmRequest.IsCompleted)
+            if (_EdmRequest == null || !_EdmRequest.IsCompleted)
                 return;
-            
+
             EditorApplication.update -= CheckEDMProgress;
-            
-            if (edmRequest.Status == StatusCode.Success)
+
+            if (_EdmRequest.Status == StatusCode.Success)
             {
                 Debug.Log("[Sorolla Palette] External Dependency Manager added successfully.");
-                packagesAdded++;
-                
+                _PackagesAdded++;
+
                 // Now add GameAnalytics SDK
-                gameAnalyticsRequest = Client.Add("com.gameanalytics.sdk@7.10.6");
+                _GameAnalyticsRequest = Client.Add("com.gameanalytics.sdk@7.10.6");
                 EditorApplication.update += CheckGameAnalyticsProgress;
             }
-            else if (edmRequest.Status >= StatusCode.Failure)
+            else if (_EdmRequest.Status >= StatusCode.Failure)
             {
-                Debug.LogError($"[Sorolla Palette] Failed to add External Dependency Manager: {edmRequest.Error.message}");
+                Debug.LogError(
+                    $"[Sorolla Palette] Failed to add External Dependency Manager: {_EdmRequest.Error.message}");
             }
-            
-            edmRequest = null;
+
+            _EdmRequest = null;
         }
-        
+
         private static void CheckGameAnalyticsProgress()
         {
-            if (gameAnalyticsRequest == null || !gameAnalyticsRequest.IsCompleted)
+            if (_GameAnalyticsRequest == null || !_GameAnalyticsRequest.IsCompleted)
                 return;
-            
+
             EditorApplication.update -= CheckGameAnalyticsProgress;
-            
-            if (gameAnalyticsRequest.Status == StatusCode.Success)
+
+            if (_GameAnalyticsRequest.Status == StatusCode.Success)
             {
                 Debug.Log("[Sorolla Palette] GameAnalytics SDK added successfully.");
-                packagesAdded++;
-                Debug.Log($"[Sorolla Palette] Setup complete. {packagesAdded} package(s) added.");
+                _PackagesAdded++;
+                Debug.Log($"[Sorolla Palette] Setup complete. {_PackagesAdded} package(s) added.");
             }
-            else if (gameAnalyticsRequest.Status >= StatusCode.Failure)
+            else if (_GameAnalyticsRequest.Status >= StatusCode.Failure)
             {
-                Debug.LogError($"[Sorolla Palette] Failed to add GameAnalytics SDK: {gameAnalyticsRequest.Error.message}");
+                Debug.LogError(
+                    $"[Sorolla Palette] Failed to add GameAnalytics SDK: {_GameAnalyticsRequest.Error.message}");
             }
-            
-            gameAnalyticsRequest = null;
+
+            _GameAnalyticsRequest = null;
         }
-        
+
         private static bool AddScopedRegistriesToManifest()
         {
-            string manifestPath = Path.Combine(Application.dataPath, "..", "Packages", "manifest.json");
-            
+            return ModifyManifest((manifest, scopedRegistries) =>
+            {
+                var modified = false;
+                if (AddOrUpdateRegistry(scopedRegistries, "Game Package Registry by Google", GOOGLE_REGISTRY_URL,
+                        new[] { "com.google" }))
+                    modified = true;
+                if (AddOrUpdateRegistry(scopedRegistries, "package.openupm.com", OPENUPM_REGISTRY_URL,
+                        new[] { "com.gameanalytics", "com.google.external-dependency-manager" }))
+                    modified = true;
+                return modified; // only write file if any registry actually changed
+            });
+        }
+
+        /// <summary>
+        ///     Installs AppLovin MAX SDK and its scoped registry - called by Configuration Window
+        /// </summary>
+        public static void InstallAppLovinMAX()
+        {
+            Debug.Log("[Sorolla Palette] Installing AppLovin MAX SDK...");
+
+            var registryAdded = AddAppLovinRegistry();
+            var dependencyAdded = AddAppLovinDependency();
+
+            if (registryAdded || dependencyAdded)
+            {
+                Debug.Log("[Sorolla Palette] AppLovin MAX added to manifest. Triggering Package Manager resolve...");
+
+                _MaxRequest = Client.Add("com.applovin.mediation.ads@8.5.0");
+                EditorApplication.update += CheckMaxInstallProgress;
+            }
+            else
+            {
+                Debug.Log("[Sorolla Palette] AppLovin MAX is already installed.");
+            }
+        }
+
+        private static void CheckMaxInstallProgress()
+        {
+            if (_MaxRequest == null || !_MaxRequest.IsCompleted)
+                return;
+
+            EditorApplication.update -= CheckMaxInstallProgress;
+
+            if (_MaxRequest.Status == StatusCode.Success)
+                Debug.Log("[Sorolla Palette] AppLovin MAX SDK installed successfully!");
+            else if (_MaxRequest.Status >= StatusCode.Failure)
+                Debug.LogError($"[Sorolla Palette] AppLovin MAX installation failed: {_MaxRequest.Error.message}");
+
+            _MaxRequest = null;
+        }
+
+        private static bool AddAppLovinRegistry()
+        {
+            return ModifyManifest((manifest, scopedRegistries) =>
+            {
+                return AddOrUpdateRegistry(scopedRegistries, "AppLovin MAX Unity", APPLOVIN_REGISTRY_URL,
+                    new[]
+                    {
+                        "com.applovin.mediation.ads", "com.applovin.mediation.adapters", "com.applovin.mediation.dsp"
+                    });
+            });
+        }
+
+        private static bool AddAppLovinDependency()
+        {
+            return AddDependencies(new Dictionary<string, string>
+            {
+                { "com.applovin.mediation.ads", "8.5.0" }
+            });
+        }
+
+        // DRY Helper Methods
+
+        private static bool AddOrUpdateRegistry(List<object> scopedRegistries, string name, string url,
+            string[] requiredScopes)
+        {
+            Dictionary<string, object> registry = null;
+            var exists = false;
+
+            // Find existing registry
+            foreach (var reg in scopedRegistries)
+            {
+                var r = reg as Dictionary<string, object>;
+                if (r != null && r.ContainsKey("url") && r["url"].ToString() == url)
+                {
+                    registry = r;
+                    exists = true;
+                    break;
+                }
+            }
+
+            // Create new registry if doesn't exist
+            if (!exists)
+            {
+                registry = new Dictionary<string, object>
+                {
+                    { "name", name },
+                    { "url", url },
+                    { "scopes", new List<object>(requiredScopes) }
+                };
+                scopedRegistries.Add(registry);
+                Debug.Log($"[Sorolla Palette] Added {name} registry to manifest.json");
+                return true;
+            }
+
+            // Update existing registry scopes
+            if (registry.ContainsKey("scopes"))
+            {
+                var scopes = registry["scopes"] as List<object>;
+                if (scopes != null)
+                {
+                    var modified = false;
+                    foreach (var scope in requiredScopes)
+                        if (!scopes.Contains(scope))
+                        {
+                            scopes.Add(scope);
+                            modified = true;
+                        }
+
+                    if (modified)
+                    {
+                        Debug.Log($"[Sorolla Palette] Updated {name} registry scopes");
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ModifyManifest(Func<Dictionary<string, object>, List<object>, bool> modifier)
+        {
+            var manifestPath = Path.Combine(Application.dataPath, "..", "Packages", "manifest.json");
+
             if (!File.Exists(manifestPath))
             {
                 Debug.LogError("[Sorolla Palette] manifest.json not found!");
                 return false;
             }
-            
+
             try
             {
-                string jsonContent = File.ReadAllText(manifestPath);
+                var jsonContent = File.ReadAllText(manifestPath);
                 var manifest = MiniJson.Deserialize(jsonContent) as Dictionary<string, object>;
-                
+
                 if (manifest == null)
                 {
                     Debug.LogError("[Sorolla Palette] Failed to parse manifest.json");
                     return false;
                 }
-                
+
                 // Get or create scopedRegistries array
-                List<object> scopedRegistries;
-                if (manifest.ContainsKey("scopedRegistries"))
+                if (!manifest.ContainsKey("scopedRegistries")) manifest["scopedRegistries"] = new List<object>();
+
+                var scopedRegistries = manifest["scopedRegistries"] as List<object>;
+
+                if (modifier(manifest, scopedRegistries))
                 {
-                    scopedRegistries = manifest["scopedRegistries"] as List<object>;
+                    var updatedJson = MiniJson.Serialize(manifest, true);
+                    File.WriteAllText(manifestPath, updatedJson);
+                    return true;
                 }
-                else
-                {
-                    scopedRegistries = new List<object>();
-                    manifest["scopedRegistries"] = scopedRegistries;
-                }
-                
-                // Check if Google registry already exists
-                bool hasGoogle = false;
-                Dictionary<string, object> googleRegistry = null;
-                
-                // Check if OpenUPM registry already exists
-                bool hasOpenUPM = false;
-                Dictionary<string, object> openUpmRegistry = null;
-                
-                foreach (var reg in scopedRegistries)
-                {
-                    var registry = reg as Dictionary<string, object>;
-                    if (registry != null && registry.ContainsKey("url"))
-                    {
-                        string url = registry["url"].ToString();
-                        if (url == GOOGLE_REGISTRY_URL)
-                        {
-                            hasGoogle = true;
-                            googleRegistry = registry;
-                        }
-                        else if (url == OPENUPM_REGISTRY_URL)
-                        {
-                            hasOpenUPM = true;
-                            openUpmRegistry = registry;
-                        }
-                    }
-                }
-                
-                // Add or update Google registry
-                if (!hasGoogle)
-                {
-                    googleRegistry = new Dictionary<string, object>
-                    {
-                        { "name", "Game Package Registry by Google" },
-                        { "url", GOOGLE_REGISTRY_URL },
-                        { "scopes", new List<object> { "com.google" } }
-                    };
-                    scopedRegistries.Add(googleRegistry);
-                    Debug.Log("[Sorolla Palette] Added Google registry to manifest.json");
-                }
-                else
-                {
-                    // Update existing Google registry scopes
-                    if (googleRegistry.ContainsKey("scopes"))
-                    {
-                        var scopes = googleRegistry["scopes"] as List<object>;
-                        if (scopes != null && !scopes.Contains("com.google"))
-                        {
-                            scopes.Add("com.google");
-                            Debug.Log("[Sorolla Palette] Updated Google registry scopes");
-                        }
-                    }
-                }
-                
-                // Add or update OpenUPM registry
-                if (!hasOpenUPM)
-                {
-                    // Create new OpenUPM registry
-                    openUpmRegistry = new Dictionary<string, object>
-                    {
-                        { "name", "package.openupm.com" },
-                        { "url", OPENUPM_REGISTRY_URL },
-                        { "scopes", new List<object> { "com.gameanalytics", "com.google.external-dependency-manager" } }
-                    };
-                    scopedRegistries.Add(openUpmRegistry);
-                    Debug.Log("[Sorolla Palette] Added OpenUPM registry to manifest.json");
-                }
-                else
-                {
-                    // Update existing OpenUPM registry scopes
-                    if (openUpmRegistry.ContainsKey("scopes"))
-                    {
-                        var scopes = openUpmRegistry["scopes"] as List<object>;
-                        if (scopes != null)
-                        {
-                            bool modified = false;
-                            
-                            if (!scopes.Contains("com.gameanalytics"))
-                            {
-                                scopes.Add("com.gameanalytics");
-                                modified = true;
-                            }
-                            
-                            if (!scopes.Contains("com.google.external-dependency-manager"))
-                            {
-                                scopes.Add("com.google.external-dependency-manager");
-                                modified = true;
-                            }
-                            
-                            if (modified)
-                            {
-                                Debug.Log("[Sorolla Palette] Updated OpenUPM registry scopes in manifest.json");
-                            }
-                            else
-                            {
-                                Debug.Log("[Sorolla Palette] OpenUPM registry already configured correctly");
-                            }
-                        }
-                    }
-                }
-                
-                // Write back to file with pretty formatting
-                string updatedJson = MiniJson.Serialize(manifest, prettyPrint: true);
-                File.WriteAllText(manifestPath, updatedJson);
-                
-                return true;
+
+                return false;
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 Debug.LogError($"[Sorolla Palette] Error modifying manifest.json: {e.Message}");
                 return false;
             }
         }
-    }
 
+        private static bool AddDependencies(Dictionary<string, string> packagesToAdd)
+        {
+            var manifestPath = Path.Combine(Application.dataPath, "..", "Packages", "manifest.json");
+
+            try
+            {
+                var jsonContent = File.ReadAllText(manifestPath);
+                var manifest = MiniJson.Deserialize(jsonContent) as Dictionary<string, object>;
+
+                if (manifest == null || !manifest.ContainsKey("dependencies")) return false;
+
+                var dependencies = manifest["dependencies"] as Dictionary<string, object>;
+                var modified = false;
+
+                foreach (var package in packagesToAdd)
+                    if (!dependencies.ContainsKey(package.Key))
+                    {
+                        dependencies[package.Key] = package.Value;
+                        modified = true;
+                        Debug.Log($"[Sorolla Palette] Added {package.Key} dependency");
+                    }
+
+                if (modified)
+                {
+                    var updatedJson = MiniJson.Serialize(manifest, true);
+                    File.WriteAllText(manifestPath, updatedJson);
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Sorolla Palette] Error adding dependencies: {e.Message}");
+                return false;
+            }
+        }
+    }
 }

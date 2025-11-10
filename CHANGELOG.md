@@ -2,14 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.0] - 2025-11-06
+## [1.0.0] - 2025-11-10
 
 ### Added
 - Initial release
 - Prototype Mode support (GA + Facebook + optional MAX)
 - Full Mode support (GA + MAX + Adjust)
-- Configuration window
-- Mode selection wizard
+- Configuration window with DRY refactoring
+- Mode selection wizard with auto-MAX installation for Full Mode
 - SDK adapters for Facebook, MAX, and Adjust
-- Auto-installation of GameAnalytics and AppLovin MAX
+- Auto-installation of GameAnalytics SDK
+- On-demand AppLovin MAX SDK installation
+- DRY refactored codebase with reusable helpers
+- Generic SDK detection pattern
+- Reusable manifest modification helpers
+- Modular config section rendering
 

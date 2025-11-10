@@ -32,7 +32,8 @@ namespace SorollaPalette.Editor
                 "This will remove:\n" +
                 "- Sorolla Palette registries\n" +
                 "- GameAnalytics SDK dependency\n" +
-                "- External Dependency Manager\n\n" +
+                "- External Dependency Manager\n" +
+                "- AppLovin MAX SDK dependency\n\n" +
                 "Continue?",
                 "Yes, Clear",
                 "Cancel"
@@ -67,7 +68,8 @@ namespace SorollaPalette.Editor
                             {
                                 string url = registry["url"].ToString();
                                 return url == "https://unityregistry-pa.googleapis.com/" || 
-                                       url == "https://package.openupm.com";
+                                       url == "https://package.openupm.com" ||
+                                       url == "https://unity.packages.applovin.com/";
                             }
                             return false;
                         });
@@ -97,6 +99,12 @@ namespace SorollaPalette.Editor
                         {
                             modified = true;
                             Debug.Log("[Sorolla Testing] Removed External Dependency Manager dependency");
+                        }
+                        
+                        if (dependencies.Remove("com.applovin.mediation.ads"))
+                        {
+                            modified = true;
+                            Debug.Log("[Sorolla Testing] Removed AppLovin MAX SDK dependency");
                         }
                     }
                 }

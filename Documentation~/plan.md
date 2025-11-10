@@ -52,8 +52,10 @@ Create a UPM package providing a complete mobile publisher stack with:
   - Adds OpenUPM scoped registry to project manifest.json (via direct file modification)
   - Uses Client.Add() API to add GameAnalytics SDK (7.10.6) - proper Package Manager trigger
   - Uses Client.Add() API to add External Dependency Manager - proper Package Manager trigger
+  - On-demand AppLovin MAX installation (registry + dependency)
   - Async progress tracking with EditorApplication.update callbacks
   - Menu item: Tools > Sorolla Palette > Run Setup (Force)
+  - DRY refactored with reusable manifest helpers
 - [x] Testing utilities (SorollaPaletteTestingTools.cs):
   - Reset package state (clear SessionState)
   - Clear manifest changes (remove Sorolla entries)
@@ -64,6 +66,7 @@ Create a UPM package providing a complete mobile publisher stack with:
   - Note: Git branch switching requires manual Package Manager refresh (Unity limitation)
 - [x] Create assembly definition files (.asmdef) for Runtime, Editor, each Module
 - [x] Unity auto-installs GameAnalytics & EDM via Package Manager API
+- [x] Testing utilities updated to clear MAX registry & dependency for clean re-run scenarios
 
 ### Phase 1: Core Runtime ⏳ IN PROGRESS
 - [x] Create `Runtime/SorollaPalette.cs` - Static API singleton
@@ -98,33 +101,46 @@ Create a UPM package providing a complete mobile publisher stack with:
   - Receive ad revenue from MAX
   - Attribution tracking
 
-### Phase 3: Editor Tools
-- [ ] **Mode Selection Wizard** (`SorollaPaletteModeSelector.cs`):
+### Phase 3: Editor Tools ✅ COMPLETE
+- [x] **Mode Selection Wizard** (`SorollaPaletteModeSelector.cs`):
   - Auto-show on first import (`[InitializeOnLoadMethod]`)
   - Two buttons: [Prototype Mode] [Full Mode]
   - Save selection: `EditorPrefs.SetString("SorollaPalette_Mode", "Prototype"/"Full")`
+  - Auto-install MAX when Full Mode is selected
   
-- [ ] **Configuration Window** (`SorollaPaletteWindow.cs`):
+- [x] **Configuration Window** (`SorollaPaletteWindow.cs`):
   - Show current mode at top
   - SDK status indicators (✅ Installed / ❌ Not Found)
   - Enable/disable module buttons (adds scripting defines)
   - Context-aware fields (show only enabled module configs)
   - Create/save SorollaPaletteConfig.asset
+  - DRY refactored with reusable helpers
+  - Install button for MAX SDK with auto-installation
 
-- [ ] **SDK Detection**:
+- [x] **SDK Detection** - DRY pattern with generic helper:
 ```csharp
-bool IsFacebookInstalled() => Type.GetType("Facebook.Unity.FB, Facebook.Unity") != null;
-bool IsAdjustInstalled() => Type.GetType("com.adjust.sdk.Adjust, Assembly-CSharp") != null;
+bool IsSDKInstalled(params string[] typeNames) => typeNames.Any(t => Type.GetType(t) != null);
+bool IsFacebookInstalled() => IsSDKInstalled("Facebook.Unity.FB, Facebook.Unity");
+bool IsAdjustInstalled() => IsSDKInstalled("com.adjust.sdk.Adjust, Assembly-CSharp", "com.adjust.sdk.Adjust, Adjust");
 ```
 
-- [ ] **Scripting Define Management**:
+- [x] **Scripting Define Management** - with validation:
 ```csharp
-void AddScriptingDefine(string define) {
-    string defines = PlayerSettings.GetScriptingDefineSymbolsForGroup(...);
-    defines += ";" + define;
-    PlayerSettings.SetScriptingDefineSymbolsForGroup(..., defines);
+void SetDefineEnabled(string define, bool enabled) {
+    var defineList = defines.Split(';').ToList();
+    if (enabled && !defineList.Contains(define)) defineList.Add(define);
+    else if (!enabled) defineList.Remove(define);
+    PlayerSettings.SetScriptingDefineSymbols(buildTarget, string.Join(";", defineList));
 }
 ```
+
+- [x] **AppLovin MAX Auto-Installation**:
+  - `InstallAppLovinMAX()` public method
+  - Adds AppLovin registry (https://unity.packages.applovin.com/)
+  - Adds MAX dependency (com.applovin.mediation.ads@8.5.0)
+  - Progress tracking with Package Manager API
+  - DRY helpers: `AddOrUpdateRegistry()`, `ModifyManifest()`, `AddDependencies()`
+- [x] Setup script DRY refactored (registry & dependency helpers) and verified on master branch
 
 ### Phase 4: Testing
 - [ ] Create test scene in `Sorolla_Testbed/Assets/Scenes/`
@@ -149,6 +165,7 @@ void AddScriptingDefine(string define) {
 Phase 0 (Testbed Setup):        ██████████ 100% (5/5) ✅ COMPLETE
 Phase 1 (Core Runtime):         ██████████ 100% (5/5) ✅ COMPLETE
 Phase 2 (SDK Adapters):         ██████████ 100% (4/4) ✅ COMPLETE
+Phase 3 (Editor Tools):         ██████████ 100% (4/4) ✅ COMPLETE
 Phase 3 (Editor Tools):         ░░░░░░░░░░   0% (0/5)
 Phase 4 (Testing):              ░░░░░░░░░░   0% (0/5)
 Phase 5 (Distribution):         ░░░░░░░░░░   0% (0/5)
