@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -145,17 +144,12 @@ namespace SorollaPalette.Editor
 
         private static bool AddScopedRegistriesToManifest()
         {
-            return ModifyManifest((manifest, scopedRegistries) =>
-            {
-                var modified = false;
-                if (AddOrUpdateRegistry(scopedRegistries, "Game Package Registry by Google", GOOGLE_REGISTRY_URL,
-                        new[] { "com.google" }))
-                    modified = true;
-                if (AddOrUpdateRegistry(scopedRegistries, "package.openupm.com", OPENUPM_REGISTRY_URL,
-                        new[] { "com.gameanalytics", "com.google.external-dependency-manager" }))
-                    modified = true;
-                return modified; // only write file if any registry actually changed
-            });
+            var modified = ManifestManager.AddOrUpdateRegistry("Game Package Registry by Google", GOOGLE_REGISTRY_URL,
+                new[] { "com.google" });
+            if (ManifestManager.AddOrUpdateRegistry("package.openupm.com", OPENUPM_REGISTRY_URL,
+                    new[] { "com.gameanalytics", "com.google.external-dependency-manager" }))
+                modified = true;
+            return modified;
         }
 
         /// <summary>
@@ -187,7 +181,7 @@ namespace SorollaPalette.Editor
         public static void UninstallAppLovinMAX()
         {
             Debug.Log("[Sorolla Palette] Uninstalling AppLovin MAX SDK...");
-            var removed = RemoveDependencies(new[] { "com.applovin.mediation.ads" });
+            var removed = ManifestManager.RemoveDependencies(new[] { "com.applovin.mediation.ads" });
             if (removed)
             {
 #if UNITY_EDITOR
@@ -250,202 +244,19 @@ namespace SorollaPalette.Editor
 
         private static bool AddAppLovinRegistry()
         {
-            return ModifyManifest((manifest, scopedRegistries) =>
-            {
-                return AddOrUpdateRegistry(scopedRegistries, "AppLovin MAX Unity", APPLOVIN_REGISTRY_URL,
-                    new[]
-                    {
-                        "com.applovin.mediation.ads", "com.applovin.mediation.adapters", "com.applovin.mediation.dsp"
-                    });
-            });
+            return ManifestManager.AddOrUpdateRegistry("AppLovin MAX Unity", APPLOVIN_REGISTRY_URL,
+                new[]
+                {
+                    "com.applovin.mediation.ads", "com.applovin.mediation.adapters", "com.applovin.mediation.dsp"
+                });
         }
 
         private static bool AddAppLovinDependency()
         {
-            return AddDependencies(new Dictionary<string, string>
+            return ManifestManager.AddDependencies(new Dictionary<string, string>
             {
                 { "com.applovin.mediation.ads", "8.5.0" }
             });
-        }
-
-        // DRY Helper Methods
-
-        private static bool AddOrUpdateRegistry(List<object> scopedRegistries, string name, string url,
-            string[] requiredScopes)
-        {
-            Dictionary<string, object> registry = null;
-            var exists = false;
-
-            // Find existing registry
-            foreach (var reg in scopedRegistries)
-            {
-                var r = reg as Dictionary<string, object>;
-                if (r != null && r.ContainsKey("url") && r["url"].ToString() == url)
-                {
-                    registry = r;
-                    exists = true;
-                    break;
-                }
-            }
-
-            // Create new registry if doesn't exist
-            if (!exists)
-            {
-                registry = new Dictionary<string, object>
-                {
-                    { "name", name },
-                    { "url", url },
-                    { "scopes", new List<object>(requiredScopes) }
-                };
-                scopedRegistries.Add(registry);
-                Debug.Log($"[Sorolla Palette] Added {name} registry to manifest.json");
-                return true;
-            }
-
-            // Update existing registry scopes
-            if (registry.ContainsKey("scopes"))
-            {
-                var scopes = registry["scopes"] as List<object>;
-                if (scopes != null)
-                {
-                    var modified = false;
-                    foreach (var scope in requiredScopes)
-                        if (!scopes.Contains(scope))
-                        {
-                            scopes.Add(scope);
-                            modified = true;
-                        }
-
-                    if (modified)
-                    {
-                        Debug.Log($"[Sorolla Palette] Updated {name} registry scopes");
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        private static bool ModifyManifest(Func<Dictionary<string, object>, List<object>, bool> modifier)
-        {
-            var manifestPath = Path.Combine(Application.dataPath, "..", "Packages", "manifest.json");
-
-            if (!File.Exists(manifestPath))
-            {
-                Debug.LogError("[Sorolla Palette] manifest.json not found!");
-                return false;
-            }
-
-            try
-            {
-                var jsonContent = File.ReadAllText(manifestPath);
-                var manifest = MiniJson.Deserialize(jsonContent) as Dictionary<string, object>;
-
-                if (manifest == null)
-                {
-                    Debug.LogError("[Sorolla Palette] Failed to parse manifest.json");
-                    return false;
-                }
-
-                // Get or create scopedRegistries array
-                if (!manifest.ContainsKey("scopedRegistries")) manifest["scopedRegistries"] = new List<object>();
-
-                var scopedRegistries = manifest["scopedRegistries"] as List<object>;
-
-                if (modifier(manifest, scopedRegistries))
-                {
-                    var updatedJson = MiniJson.Serialize(manifest, true);
-                    File.WriteAllText(manifestPath, updatedJson);
-#if UNITY_EDITOR
-                    Client.Resolve();
-#endif
-                    return true;
-                }
-
-                return false;
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[Sorolla Palette] Error modifying manifest.json: {e.Message}");
-                return false;
-            }
-        }
-
-        private static bool AddDependencies(Dictionary<string, string> packagesToAdd)
-        {
-            var manifestPath = Path.Combine(Application.dataPath, "..", "Packages", "manifest.json");
-
-            try
-            {
-                var jsonContent = File.ReadAllText(manifestPath);
-                var manifest = MiniJson.Deserialize(jsonContent) as Dictionary<string, object>;
-
-                if (manifest == null || !manifest.ContainsKey("dependencies")) return false;
-
-                var dependencies = manifest["dependencies"] as Dictionary<string, object>;
-                var modified = false;
-
-                foreach (var package in packagesToAdd)
-                    if (!dependencies.ContainsKey(package.Key))
-                    {
-                        dependencies[package.Key] = package.Value;
-                        modified = true;
-                        Debug.Log($"[Sorolla Palette] Added {package.Key} dependency");
-                    }
-
-                if (modified)
-                {
-                    var updatedJson = MiniJson.Serialize(manifest, true);
-                    File.WriteAllText(manifestPath, updatedJson);
-#if UNITY_EDITOR
-                    Client.Resolve();
-#endif
-                    return true;
-                }
-
-                return false;
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[Sorolla Palette] Error adding dependencies: {e.Message}");
-                return false;
-            }
-        }
-
-        private static bool RemoveDependencies(IEnumerable<string> packageNames)
-        {
-            var manifestPath = Path.Combine(Application.dataPath, "..", "Packages", "manifest.json");
-            try
-            {
-                var jsonContent = File.ReadAllText(manifestPath);
-                var manifest = MiniJson.Deserialize(jsonContent) as Dictionary<string, object>;
-                if (manifest == null || !manifest.ContainsKey("dependencies")) return false;
-
-                var dependencies = manifest["dependencies"] as Dictionary<string, object>;
-                var modified = false;
-                foreach (var name in packageNames)
-                    if (dependencies.ContainsKey(name))
-                    {
-                        dependencies.Remove(name);
-                        modified = true;
-                        Debug.Log($"[Sorolla Palette] Removed {name} dependency");
-                    }
-
-                if (modified)
-                {
-                    var updatedJson = MiniJson.Serialize(manifest, true);
-                    File.WriteAllText(manifestPath, updatedJson);
-                    return true;
-                }
-
-                return false;
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[Sorolla Palette] Error removing dependencies: {e.Message}");
-                return false;
-            }
         }
     }
 }

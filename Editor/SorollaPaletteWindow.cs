@@ -1,6 +1,4 @@
-using System.Linq;
 using UnityEditor;
-using UnityEditor.Build;
 using UnityEngine;
 
 namespace SorollaPalette.Editor
@@ -298,24 +296,7 @@ namespace SorollaPalette.Editor
 
         private void SetDefineEnabled(string define, bool enabled)
         {
-            var buildTarget = NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup);
-            var defines = PlayerSettings.GetScriptingDefineSymbols(buildTarget);
-            var defineList = defines.Split(';').Where(d => !string.IsNullOrEmpty(d)).ToList();
-            var changed = false;
-            if (enabled && !defineList.Contains(define))
-            {
-                defineList.Add(define);
-                changed = true;
-            }
-            else if (!enabled && defineList.Contains(define))
-            {
-                defineList.Remove(define);
-                changed = true;
-            }
-
-            if (!changed) return;
-            PlayerSettings.SetScriptingDefineSymbols(buildTarget, string.Join(";", defineList));
-            Debug.Log("[Sorolla Palette] Scripting defines updated.");
+            DefineManager.SetDefineEnabled(define, enabled);
         }
     }
 }

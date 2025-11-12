@@ -112,7 +112,7 @@ namespace SorollaPalette.Editor
             Debug.Log($"[Sorolla Palette] Mode set to: {mode}");
 
             // Apply defines immediately
-            SorollaDefineSync.SyncAllPlatforms();
+            DefineManager.ApplyModeDefines(mode);
 
             // Auto-install MAX and Adjust if Full Mode is selected
             if (mode == "Full")

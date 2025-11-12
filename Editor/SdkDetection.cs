@@ -1,10 +1,11 @@
-// filepath: Packages/com.sorolla.palette/Editor/SdkDetection.cs
-
 using System;
 using System.Linq;
 
 namespace SorollaPalette.Editor
 {
+    /// <summary>
+    ///     DRY SDK detection utilities - refactored to eliminate repetitive patterns
+    /// </summary>
     internal static class SdkDetection
     {
         private static bool HasType(string assemblyQualifiedType)
@@ -15,41 +16,47 @@ namespace SorollaPalette.Editor
         private static bool HasAssembly(string assemblyNameContains)
         {
             var term = assemblyNameContains.ToLowerInvariant();
-            return AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name.ToLowerInvariant().Contains(term));
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .Any(a => a.GetName().Name.ToLowerInvariant().Contains(term));
+        }
+
+        /// <summary>
+        ///     Generic SDK detection method - checks multiple type names
+        /// </summary>
+        private static bool IsSDKInstalled(params string[] typeNames)
+        {
+            return typeNames.Any(HasType);
         }
 
         public static bool IsGameAnalyticsInstalled()
         {
-            return HasType("GameAnalytics, GameAnalyticsSDK") ||
-                   HasType("GameAnalyticsSDK.GameAnalytics, GameAnalyticsSDK") ||
+            return IsSDKInstalled("GameAnalytics, GameAnalyticsSDK",
+                       "GameAnalyticsSDK.GameAnalytics, GameAnalyticsSDK") ||
                    HasAssembly("GameAnalyticsSDK");
         }
 
         public static bool IsFacebookInstalled()
         {
-            return HasType("Facebook.Unity.FB, Facebook.Unity") || HasAssembly("Facebook.Unity");
+            return IsSDKInstalled("Facebook.Unity.FB, Facebook.Unity") ||
+                   HasAssembly("Facebook.Unity");
         }
 
         public static bool IsMaxInstalled()
         {
-            return HasType("MaxSdk, MaxSdk.Scripts") ||
-                   HasType("MaxSdkBase, MaxSdk.Scripts") ||
-                   HasAssembly("MaxSdk.Scripts") || HasAssembly("applovin");
+            return IsSDKInstalled("MaxSdk, MaxSdk.Scripts",
+                       "MaxSdkBase, MaxSdk.Scripts") ||
+                   HasAssembly("MaxSdk.Scripts") ||
+                   HasAssembly("applovin");
         }
 
         public static bool IsAdjustInstalled()
         {
-            // Direct type checks
-            if (HasType("com.adjust.sdk.Adjust, com.adjust.sdk") || HasType("com.adjust.sdk.Adjust, Assembly-CSharp"))
-                return true;
-            if (HasType("AdjustSdk.Adjust, AdjustSdk.Scripts"))
-                return true;
-
-            // Fallback: scan loaded assemblies for any that look like Adjust
-            if (HasAssembly("com.adjust.sdk") || HasAssembly("adjustsdk.scripts") || HasAssembly("adjust"))
-                return true;
-
-            return false;
+            return IsSDKInstalled("com.adjust.sdk.Adjust, com.adjust.sdk",
+                       "com.adjust.sdk.Adjust, Assembly-CSharp",
+                       "AdjustSdk.Adjust, AdjustSdk.Scripts") ||
+                   HasAssembly("com.adjust.sdk") ||
+                   HasAssembly("adjustsdk.scripts") ||
+                   HasAssembly("adjust");
         }
     }
 }
