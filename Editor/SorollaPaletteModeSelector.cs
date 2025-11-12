@@ -1,4 +1,3 @@
-using System;
 using UnityEditor;
 using UnityEngine;
 
@@ -112,12 +111,14 @@ namespace SorollaPalette.Editor
 
             Debug.Log($"[Sorolla Palette] Mode set to: {mode}");
 
+            // Apply defines immediately
+            SorollaDefineSync.SyncAllPlatforms();
+
             // Auto-install MAX and Adjust if Full Mode is selected
             if (mode == "Full")
             {
                 // Check if MAX is already installed
-                var isMaxInstalled = Type.GetType("MaxSdk, MaxSdk.Scripts") != null ||
-                                      Type.GetType("MaxSdkBase, MaxSdk.Scripts") != null;
+                var isMaxInstalled = SdkDetection.IsMaxInstalled();
 
                 if (!isMaxInstalled)
                 {
@@ -126,7 +127,7 @@ namespace SorollaPalette.Editor
                 }
 
                 // Check if Adjust is already installed
-                var isAdjustInstalled = Type.GetType("com.adjust.sdk.Adjust, com.adjust.sdk") != null;
+                var isAdjustInstalled = SdkDetection.IsAdjustInstalled();
 
                 if (!isAdjustInstalled)
                 {

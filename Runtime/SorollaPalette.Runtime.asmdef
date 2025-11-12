@@ -1,27 +1,34 @@
 {
-  "name": "SorollaPalette.Runtime",
-  "rootNamespace": "SorollaPalette",
-  "references": [
-    "GameAnalyticsSDK"
-  ],
-  "includePlatforms": [],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [
-    {
-      "name": "com.gameanalytics.sdk",
-      "expression": "",
-      "define": "GAMEANALYTICS_INSTALLED"
-    },
-    {
-      "name": "com.applovin.mediation.ads",
-      "expression": "",
-      "define": "APPLOVIN_MAX_INSTALLED"
-    }
-  ],
-  "noEngineReferences": false
+    "name": "SorollaPalette.Runtime",
+    "rootNamespace": "SorollaPalette",
+    "references": [
+        "GameAnalyticsSDK",
+        "AdjustSdk.Scripts",
+        "MaxSdk.Scripts"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.gameanalytics.sdk",
+            "expression": "",
+            "define": "GAMEANALYTICS_INSTALLED"
+        },
+        {
+            "name": "com.applovin.mediation.ads",
+            "expression": "",
+            "define": "APPLOVIN_MAX_INSTALLED"
+        },
+        {
+            "name": "com.adjust.sdk",
+            "expression": "",
+            "define": "ADJUST_SDK_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
 }

@@ -1,6 +1,10 @@
 using System;
 using System.Globalization;
 using UnityEngine;
+#if ADJUST_SDK_INSTALLED
+using AdjustSdk;
+#endif
+
 #if GAMEANALYTICS_INSTALLED
 using GameAnalyticsSDK;
 #endif
@@ -51,14 +55,14 @@ namespace SorollaPalette
             // Initialize GameAnalytics (always required)
             InitializeGameAnalytics();
 
-            // Initialize MAX if enabled
+            // Initialize MAX if compiled/available
 #if SOROLLA_MAX_ENABLED
-            if (config.maxModuleEnabled) InitializeMax();
+            InitializeMax();
 #endif
 
             // Initialize Facebook in Prototype Mode
 #if SOROLLA_FACEBOOK_ENABLED
-            if (config.mode == PaletteMode.Prototype && config.facebookModuleEnabled)
+            if (config.mode == PaletteMode.Prototype)
             {
                 InitializeFacebook();
             }
@@ -66,10 +70,7 @@ namespace SorollaPalette
 
             // Initialize Adjust in Full Mode
 #if SOROLLA_ADJUST_ENABLED
-            if (config.mode == PaletteMode.Full && config.adjustModuleEnabled)
-            {
-                InitializeAdjust();
-            }
+            if (config.mode == PaletteMode.Full) InitializeAdjust();
 #endif
 
             IsInitialized = true;
@@ -112,7 +113,11 @@ namespace SorollaPalette
                 Debug.LogError("[Sorolla Palette] Adjust App Token is empty!");
                 return;
             }
-            Adjust.AdjustAdapter.Initialize(_Config.adjustAppToken, _Config.adjustEnvironment);
+#if ADJUST_SDK_INSTALLED
+            Adjust.InitSdk(new AdjustConfig(_Config.adjustAppToken, _Config.adjustEnvironment, false));
+#else
+            Debug.LogWarning("[Sorolla Palette] Adjust SDK package not installed. Skipping initialization.");
+#endif
 #endif
         }
 
@@ -161,7 +166,8 @@ namespace SorollaPalette
             GameAnalyticsAdapter.TrackProgressionEvent(status, progression01, progression02, progression03, score);
 #else
             // Fallback when GA not installed
-            GameAnalyticsAdapter.TrackProgressionEvent(progressionStatus, progression01, progression02, progression03, score);
+            GameAnalyticsAdapter.TrackProgressionEvent(progressionStatus, progression01, progression02, progression03,
+                score);
 #endif
         }
 
@@ -275,33 +281,14 @@ namespace SorollaPalette
 
         #region MAX Integration
 
-        private static bool TryInvokeMax(string methodName, params object[] args)
-        {
-#if SOROLLA_MAX_ENABLED && APPLOVIN_MAX_INSTALLED
-            var type = Type.GetType("SorollaPalette.MAX.MaxAdapter, SorollaPalette.MAX");
-            if (type == null) return false;
-            var method =
- type.GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-            if (method == null) return false;
-            try { method.Invoke(null, args); return true; } catch { return false; }
-#else
-            return false;
-#endif
-        }
-
         private static void InitializeMax()
         {
 #if SOROLLA_MAX_ENABLED && APPLOVIN_MAX_INSTALLED
             Debug.Log("[Sorolla Palette] Initializing AppLovin MAX...");
             if (string.IsNullOrEmpty(_Config.maxSdkKey))
-            {
                 Debug.LogError("[Sorolla Palette] AppLovin MAX SDK Key is empty!");
-                return;
-            }
-            if (!TryInvokeMax("Initialize", _Config.maxSdkKey, _Config.maxRewardedAdUnitId, _Config.maxInterstitialAdUnitId, _Config.maxBannerAdUnitId))
-            {
-                Debug.LogWarning("[Sorolla Palette] Failed to locate MAX adapter. Is the MAX module compiled?");
-            }
+
+            //MaxAdapter.Initialize(_Config.maxSdkKey, _Config.maxRewardedAdUnitId, _Config.maxInterstitialAdUnitId, _Config.maxBannerAdUnitId);
 #else
             Debug.LogWarning("[Sorolla Palette] AppLovin MAX package not installed yet. Skipping initialization.");
 #endif
@@ -314,16 +301,7 @@ namespace SorollaPalette
         {
 #if SOROLLA_MAX_ENABLED
 #if APPLOVIN_MAX_INSTALLED
-            if (!_Config.maxModuleEnabled)
-            {
-                Debug.LogWarning("[Sorolla Palette] AppLovin MAX module not enabled!");
-                onFailed?.Invoke(); return;
-            }
-            if (!TryInvokeMax("ShowRewardedAd", onComplete, onFailed))
-            {
-                Debug.LogWarning("[Sorolla Palette] Failed to locate MAX adapter. Is the MAX module compiled?");
-                onFailed?.Invoke();
-            }
+            //MaxAdapter.ShowRewardedAd(onComplete, onFailed);
 #else
             Debug.LogWarning("[Sorolla Palette] AppLovin MAX package not installed.");
             onFailed?.Invoke();
@@ -341,16 +319,6 @@ namespace SorollaPalette
         {
 #if SOROLLA_MAX_ENABLED
 #if APPLOVIN_MAX_INSTALLED
-            if (!_Config.maxModuleEnabled)
-            {
-                Debug.LogWarning("[Sorolla Palette] AppLovin MAX module not enabled!");
-                return;
-            }
-            if (!TryInvokeMax("ShowInterstitialAd", onComplete))
-            {
-                Debug.LogWarning("[Sorolla Palette] Failed to locate MAX adapter. Is the MAX module compiled?");
-                onComplete?.Invoke();
-            }
 #else
             Debug.LogWarning("[Sorolla Palette] AppLovin MAX package not installed.");
             onComplete?.Invoke();

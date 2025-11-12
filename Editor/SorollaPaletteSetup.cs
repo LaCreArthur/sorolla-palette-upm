@@ -21,6 +21,8 @@ namespace SorollaPalette.Editor
         private static AddRequest _MaxRequest;
         private static int _PackagesAdded;
 
+        private static AddRequest _AdjustRequest;
+
         static SorollaPaletteSetup()
         {
             // Run setup once when package is first imported
@@ -180,28 +182,55 @@ namespace SorollaPalette.Editor
         }
 
         /// <summary>
+        ///     Uninstalls AppLovin MAX package from manifest and resolves UPM
+        /// </summary>
+        public static void UninstallAppLovinMAX()
+        {
+            Debug.Log("[Sorolla Palette] Uninstalling AppLovin MAX SDK...");
+            var removed = RemoveDependencies(new[] { "com.applovin.mediation.ads" });
+            if (removed)
+            {
+#if UNITY_EDITOR
+                Client.Resolve();
+#endif
+                Debug.Log("[Sorolla Palette] AppLovin MAX removed. Resolving packages...");
+            }
+            else
+            {
+                Debug.Log("[Sorolla Palette] AppLovin MAX was not present in manifest.");
+            }
+        }
+
+        /// <summary>
         ///     Installs Adjust SDK via UPM - called by Mode Selector for Full Mode
         /// </summary>
         public static void InstallAdjustSDK()
         {
+            if (_AdjustRequest != null && !_AdjustRequest.IsCompleted)
+            {
+                Debug.Log("[Sorolla Palette] Adjust SDK installation already in progress...");
+                return;
+            }
+
             Debug.Log("[Sorolla Palette] Installing Adjust SDK...");
 
-            // Adjust SDK is available via git URL: https://github.com/adjust/unity_sdk.git?path=Assets/Adjust
-            var adjustRequest = Client.Add("https://github.com/adjust/unity_sdk.git?path=Assets/Adjust");
-            EditorApplication.update += () => CheckAdjustInstallProgress(adjustRequest);
+            _AdjustRequest = Client.Add("https://github.com/adjust/unity_sdk.git?path=Assets/Adjust");
+            EditorApplication.update += CheckAdjustInstallProgress;
         }
 
-        private static void CheckAdjustInstallProgress(AddRequest request)
+        private static void CheckAdjustInstallProgress()
         {
-            if (request == null || !request.IsCompleted)
+            if (_AdjustRequest == null || !_AdjustRequest.IsCompleted)
                 return;
 
-            EditorApplication.update -= () => CheckAdjustInstallProgress(request);
+            EditorApplication.update -= CheckAdjustInstallProgress;
 
-            if (request.Status == StatusCode.Success)
+            if (_AdjustRequest.Status == StatusCode.Success)
                 Debug.Log("[Sorolla Palette] Adjust SDK installed successfully!");
-            else if (request.Status >= StatusCode.Failure)
-                Debug.LogError($"[Sorolla Palette] Adjust SDK installation failed: {request.Error.message}");
+            else if (_AdjustRequest.Status >= StatusCode.Failure)
+                Debug.LogError($"[Sorolla Palette] Adjust SDK installation failed: {_AdjustRequest.Error.message}");
+
+            _AdjustRequest = null;
         }
 
         private static void CheckMaxInstallProgress()
@@ -328,6 +357,9 @@ namespace SorollaPalette.Editor
                 {
                     var updatedJson = MiniJson.Serialize(manifest, true);
                     File.WriteAllText(manifestPath, updatedJson);
+#if UNITY_EDITOR
+                    Client.Resolve();
+#endif
                     return true;
                 }
 
@@ -366,6 +398,9 @@ namespace SorollaPalette.Editor
                 {
                     var updatedJson = MiniJson.Serialize(manifest, true);
                     File.WriteAllText(manifestPath, updatedJson);
+#if UNITY_EDITOR
+                    Client.Resolve();
+#endif
                     return true;
                 }
 
@@ -374,6 +409,41 @@ namespace SorollaPalette.Editor
             catch (Exception e)
             {
                 Debug.LogError($"[Sorolla Palette] Error adding dependencies: {e.Message}");
+                return false;
+            }
+        }
+
+        private static bool RemoveDependencies(IEnumerable<string> packageNames)
+        {
+            var manifestPath = Path.Combine(Application.dataPath, "..", "Packages", "manifest.json");
+            try
+            {
+                var jsonContent = File.ReadAllText(manifestPath);
+                var manifest = MiniJson.Deserialize(jsonContent) as Dictionary<string, object>;
+                if (manifest == null || !manifest.ContainsKey("dependencies")) return false;
+
+                var dependencies = manifest["dependencies"] as Dictionary<string, object>;
+                var modified = false;
+                foreach (var name in packageNames)
+                    if (dependencies.ContainsKey(name))
+                    {
+                        dependencies.Remove(name);
+                        modified = true;
+                        Debug.Log($"[Sorolla Palette] Removed {name} dependency");
+                    }
+
+                if (modified)
+                {
+                    var updatedJson = MiniJson.Serialize(manifest, true);
+                    File.WriteAllText(manifestPath, updatedJson);
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Sorolla Palette] Error removing dependencies: {e.Message}");
                 return false;
             }
         }

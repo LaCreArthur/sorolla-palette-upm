@@ -126,6 +126,7 @@ namespace SorollaPalette.Adjust
         /// Track ad revenue from AppLovin MAX
         /// Called automatically when MAX reports revenue
         /// </summary>
+#if APPLOVIN_MAX_INSTALLED
         public static void TrackAdRevenue(MaxSdkBase.AdInfo adInfo)
         {
             if (!_isInitialized)
@@ -145,6 +146,12 @@ namespace SorollaPalette.Adjust
             
             Debug.Log($"[Adjust Adapter] Ad Revenue tracked: {adInfo.Revenue} USD from {adInfo.NetworkName}");
         }
+#else
+        public static void TrackAdRevenue(object adInfo)
+        {
+            // No-op when MAX is not installed
+        }
+#endif
         
         /// <summary>
         /// Set user ID for attribution
@@ -191,4 +198,3 @@ namespace SorollaPalette.Adjust
     }
 }
 #endif
-

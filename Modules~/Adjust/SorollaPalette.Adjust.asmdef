@@ -13,8 +13,12 @@
   "defineConstraints": [
     "SOROLLA_ADJUST_ENABLED"
   ],
-  "versionDefines": [],
+  "versionDefines": [
+    {
+      "name": "com.adjust.sdk",
+      "expression": "",
+      "define": "ADJUST_SDK_INSTALLED"
+    }
+  ],
   "noEngineReferences": false
 }
-
-
