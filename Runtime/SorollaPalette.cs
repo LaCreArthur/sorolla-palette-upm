@@ -1,10 +1,15 @@
 using System;
 using System.Globalization;
 using UnityEngine;
-#if ADJUST_SDK_INSTALLED
-using AdjustSdk;
+#if SOROLLA_MAX_ENABLED
+using SorollaPalette.MAX;
 #endif
-
+#if SOROLLA_ADJUST_ENABLED
+using SorollaPalette.Adjust;
+#endif
+#if SOROLLA_FACEBOOK_ENABLED
+using SorollaPalette.Facebook;
+#endif
 #if GAMEANALYTICS_INSTALLED
 using GameAnalyticsSDK;
 #endif
@@ -62,10 +67,7 @@ namespace SorollaPalette
 
             // Initialize Facebook in Prototype Mode
 #if SOROLLA_FACEBOOK_ENABLED
-            if (config.mode == PaletteMode.Prototype)
-            {
-                InitializeFacebook();
-            }
+            if (config.mode == PaletteMode.Prototype) InitializeFacebook();
 #endif
 
             // Initialize Adjust in Full Mode
@@ -96,7 +98,8 @@ namespace SorollaPalette
                 Debug.LogError("[Sorolla Palette] Facebook App ID is empty!");
                 return;
             }
-            Facebook.FacebookAdapter.Initialize();
+
+            FacebookAdapter.Initialize();
 #endif
         }
 
@@ -114,7 +117,7 @@ namespace SorollaPalette
                 return;
             }
 #if ADJUST_SDK_INSTALLED
-            Adjust.InitSdk(new AdjustConfig(_Config.adjustAppToken, _Config.adjustEnvironment, false));
+            AdjustAdapter.Initialize(_Config.adjustAppToken, AdjustEnvironment.Production);
 #else
             Debug.LogWarning("[Sorolla Palette] Adjust SDK package not installed. Skipping initialization.");
 #endif
@@ -188,9 +191,7 @@ namespace SorollaPalette
             // Forward to Facebook in Prototype Mode
 #if SOROLLA_FACEBOOK_ENABLED
             if (_Config.mode == PaletteMode.Prototype && _Config.facebookModuleEnabled)
-            {
-                Facebook.FacebookAdapter.TrackEvent(eventName, value);
-            }
+                FacebookAdapter.TrackEvent(eventName, value);
 #endif
         }
 
@@ -288,7 +289,8 @@ namespace SorollaPalette
             if (string.IsNullOrEmpty(_Config.maxSdkKey))
                 Debug.LogError("[Sorolla Palette] AppLovin MAX SDK Key is empty!");
 
-            //MaxAdapter.Initialize(_Config.maxSdkKey, _Config.maxRewardedAdUnitId, _Config.maxInterstitialAdUnitId, _Config.maxBannerAdUnitId);
+            MaxAdapter.Initialize(_Config.maxSdkKey, _Config.maxRewardedAdUnitId, _Config.maxInterstitialAdUnitId,
+                _Config.maxBannerAdUnitId);
 #else
             Debug.LogWarning("[Sorolla Palette] AppLovin MAX package not installed yet. Skipping initialization.");
 #endif

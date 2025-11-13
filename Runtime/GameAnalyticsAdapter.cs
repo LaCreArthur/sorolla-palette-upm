@@ -71,23 +71,23 @@ namespace SorollaPalette
             if (string.IsNullOrEmpty(progression02) && string.IsNullOrEmpty(progression03))
             {
                 if (score > 0)
-                    GameAnalytics.GameAnalytics.NewProgressionEvent(status, progression01, score);
+                    GameAnalyticsSDK.GameAnalytics.NewProgressionEvent(status, progression01, score);
                 else
-                    GameAnalytics.GameAnalytics.NewProgressionEvent(status, progression01);
+                    GameAnalyticsSDK.GameAnalytics.NewProgressionEvent(status, progression01);
             }
             else if (string.IsNullOrEmpty(progression03))
             {
                 if (score > 0)
-                    GameAnalytics.GameAnalytics.NewProgressionEvent(status, progression01, progression02, score);
+                    GameAnalyticsSDK.GameAnalytics.NewProgressionEvent(status, progression01, progression02, score);
                 else
-                    GameAnalytics.GameAnalytics.NewProgressionEvent(status, progression01, progression02);
+                    GameAnalyticsSDK.GameAnalytics.NewProgressionEvent(status, progression01, progression02);
             }
             else
             {
                 if (score > 0)
-                    GameAnalytics.GameAnalytics.NewProgressionEvent(status, progression01, progression02, progression03, score);
+                    GameAnalyticsSDK.GameAnalytics.NewProgressionEvent(status, progression01, progression02, progression03, score);
                 else
-                    GameAnalytics.GameAnalytics.NewProgressionEvent(status, progression01, progression02, progression03);
+                    GameAnalyticsSDK.GameAnalytics.NewProgressionEvent(status, progression01, progression02, progression03);
             }
 #else
             Debug.Log($"[GA Adapter] Progression Event: {status} - {progression01}/{progression02}/{progression03} (Score: {score})");
@@ -112,9 +112,9 @@ namespace SorollaPalette
             
 #if !UNITY_EDITOR
             if (value != 0)
-                GameAnalytics.GameAnalytics.NewDesignEvent(eventName, value);
+                GameAnalyticsSDK.GameAnalytics.NewDesignEvent(eventName, value);
             else
-                GameAnalytics.GameAnalytics.NewDesignEvent(eventName);
+                GameAnalyticsSDK.GameAnalytics.NewDesignEvent(eventName);
 #else
             Debug.Log($"[GA Adapter] Design Event: {eventName} = {value}");
 #endif
@@ -137,7 +137,7 @@ namespace SorollaPalette
             }
             
 #if !UNITY_EDITOR
-            GameAnalytics.GameAnalytics.NewResourceEvent(flowType, currency, amount, itemType, itemId);
+            GameAnalyticsSDK.GameAnalytics.NewResourceEvent(flowType, currency, amount, itemType, itemId);
 #else
             Debug.Log($"[GA Adapter] Resource Event: {flowType} - {currency} {amount} ({itemType}:{itemId})");
 #endif
@@ -159,7 +159,7 @@ namespace SorollaPalette
             }
             
 #if !UNITY_EDITOR
-            return GameAnalytics.GameAnalytics.GetRemoteConfigsValueAsString(key, defaultValue);
+            return GameAnalyticsSDK.GameAnalytics.GetRemoteConfigsValueAsString(key, defaultValue);
 #else
             Debug.Log($"[GA Adapter] Remote Config: {key} (default: {defaultValue})");
             return defaultValue;

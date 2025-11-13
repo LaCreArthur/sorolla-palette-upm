@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
@@ -7,15 +9,15 @@ using UnityEngine;
 namespace SorollaPalette.Editor
 {
     /// <summary>
-    /// KISS installation manager - synchronous installation with clear error handling
-    /// Eliminates complex async progress tracking
+    ///     KISS installation manager - synchronous installation with clear error handling
+    ///     Eliminates complex async progress tracking
     /// </summary>
     public static class InstallationManager
     {
         private static AddRequest _currentRequest;
 
         /// <summary>
-        /// Synchronous package installation with clear error handling
+        ///     Synchronous package installation with clear error handling
         /// </summary>
         public static bool InstallPackage(string packageId, string displayName = null)
         {
@@ -41,7 +43,7 @@ namespace SorollaPalette.Editor
                     }
 
                     // Allow Unity to process events
-                    System.Threading.Thread.Sleep(10);
+                    Thread.Sleep(10);
                 }
 
                 if (_currentRequest.Status == StatusCode.Success)
@@ -51,7 +53,8 @@ namespace SorollaPalette.Editor
                 }
                 else
                 {
-                    Debug.LogError($"[InstallationManager] Failed to install {displayName}: {_currentRequest.Error.message}");
+                    Debug.LogError(
+                        $"[InstallationManager] Failed to install {displayName}: {_currentRequest.Error.message}");
                     return false;
                 }
             }
@@ -67,7 +70,7 @@ namespace SorollaPalette.Editor
         }
 
         /// <summary>
-        /// Install AppLovin MAX with registry and dependency
+        ///     Install AppLovin MAX with registry and dependency
         /// </summary>
         public static bool InstallAppLovinMAX()
         {
@@ -81,7 +84,7 @@ namespace SorollaPalette.Editor
             );
 
             // Add dependency
-            var dependencyAdded = ManifestManager.AddDependencies(new System.Collections.Generic.Dictionary<string, string>
+            var dependencyAdded = ManifestManager.AddDependencies(new Dictionary<string, string>
             {
                 { "com.applovin.mediation.ads", "8.5.0" }
             });
@@ -91,15 +94,23 @@ namespace SorollaPalette.Editor
                 Debug.Log("[InstallationManager] AppLovin MAX added to manifest. Installing package...");
                 return InstallPackage("com.applovin.mediation.ads@8.5.0", "AppLovin MAX");
             }
-            else
-            {
-                Debug.Log("[InstallationManager] AppLovin MAX is already installed.");
-                return true;
-            }
+
+            Debug.Log("[InstallationManager] AppLovin MAX is already installed.");
+            return true;
         }
 
         /// <summary>
-        /// Install Adjust SDK
+        ///     Install Facebook SDK
+        /// </summary>
+        public static bool InstallFacebookSDK()
+        {
+            //todo: pûblished the UPM package of the Facebook SDK to public github and update this url
+            Debug.Log("[InstallationManager] Installing Facebook SDK...");
+            return InstallPackage("https://github.com/facebook/facebook-sdk-for-unity.git#v18.0.0", "Facebook SDK");
+        }
+
+        /// <summary>
+        ///     Install Adjust SDK
         /// </summary>
         public static bool InstallAdjustSDK()
         {
@@ -108,7 +119,7 @@ namespace SorollaPalette.Editor
         }
 
         /// <summary>
-        /// Install GameAnalytics SDK
+        ///     Install GameAnalytics SDK
         /// </summary>
         public static bool InstallGameAnalytics()
         {
@@ -117,7 +128,7 @@ namespace SorollaPalette.Editor
         }
 
         /// <summary>
-        /// Install External Dependency Manager
+        ///     Install External Dependency Manager
         /// </summary>
         public static bool InstallExternalDependencyManager()
         {

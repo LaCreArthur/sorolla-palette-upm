@@ -223,7 +223,17 @@ namespace SorollaPalette.Editor
             EditorGUI.indentLevel++;
 
             foreach (var propertyName in propertyNames)
-                EditorGUILayout.PropertyField(serializedConfig.FindProperty(propertyName));
+            {
+                var property = serializedConfig.FindProperty(propertyName);
+                if (property != null)
+                {
+                    EditorGUILayout.PropertyField(property);
+                }
+                else
+                {
+                    EditorGUILayout.HelpBox($"Property '{propertyName}' not found in config", MessageType.Warning);
+                }
+            }
 
             EditorGUI.indentLevel--;
             GUILayout.Space(10);
@@ -294,9 +304,5 @@ namespace SorollaPalette.Editor
         }
 
 
-        private void SetDefineEnabled(string define, bool enabled)
-        {
-            DefineManager.SetDefineEnabled(define, enabled);
-        }
     }
 }

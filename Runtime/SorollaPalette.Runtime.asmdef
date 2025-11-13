@@ -3,8 +3,9 @@
     "rootNamespace": "SorollaPalette",
     "references": [
         "GameAnalyticsSDK",
-        "AdjustSdk.Scripts",
-        "MaxSdk.Scripts"
+        "SorollaPalette.Facebook",
+        "SorollaPalette.Adjust",
+        "SorollaPalette.MAX"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
