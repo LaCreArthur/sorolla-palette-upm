@@ -1,0 +1,43 @@
+{
+    "name": "Sorolla.Samples.PrototypeTest",
+    "rootNamespace": "Sorolla.Samples",
+    "references": [
+        "Sorolla.Runtime",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.gameanalytics.sdk",
+            "expression": "",
+            "define": "GAMEANALYTICS_INSTALLED"
+        },
+        {
+            "name": "com.lacrearthur.facebook-sdk-for-unity",
+            "expression": "",
+            "define": "SOROLLA_FACEBOOK_ENABLED"
+        },
+        {
+            "name": "com.google.firebase.analytics",
+            "expression": "",
+            "define": "FIREBASE_ANALYTICS_INSTALLED"
+        },
+        {
+            "name": "com.google.firebase.crashlytics",
+            "expression": "",
+            "define": "FIREBASE_CRASHLYTICS_INSTALLED"
+        },
+        {
+            "name": "com.google.firebase.remote-config",
+            "expression": "",
+            "define": "FIREBASE_REMOTE_CONFIG_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}

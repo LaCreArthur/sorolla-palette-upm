@@ -1,0 +1,26 @@
+{
+    "name": "Sorolla.Samples.PrototypeTest.Editor",
+    "rootNamespace": "Sorolla.Samples.Editor",
+    "references": [
+        "Sorolla.Runtime",
+        "Sorolla.Samples.PrototypeTest",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.gameanalytics.sdk",
+            "expression": "",
+            "define": "GAMEANALYTICS_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}
