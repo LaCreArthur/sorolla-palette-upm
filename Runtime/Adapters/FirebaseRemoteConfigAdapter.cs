@@ -1,8 +1,8 @@
 #if FIREBASE_REMOTE_CONFIG_INSTALLED
 using System;
 using System.Collections.Generic;
-using Firebase.RemoteConfig;
 using Firebase.Extensions;
+using Firebase.RemoteConfig;
 using UnityEngine;
 
 namespace Sorolla.Adapters
@@ -12,17 +12,17 @@ namespace Sorolla.Adapters
     /// </summary>
     public static class FirebaseRemoteConfigAdapter
     {
-        private const string Tag = "[Sorolla:RemoteConfig]";
-        private static bool s_initRequested;
-        private static bool s_init;
-        private static bool s_ready;
-        private static bool s_fetching;
-        private static Dictionary<string, object> s_pendingDefaults;
-        private static bool s_pendingAutoFetch;
-        private static Action<bool> s_pendingFetchCallback;
+        const string Tag = "[Sorolla:RemoteConfig]";
+        static bool s_initRequested;
+        static bool s_init;
+        static bool s_fetching;
+        static Dictionary<string, object> s_pendingDefaults;
+        static bool s_pendingAutoFetch;
+        static Action<bool> s_pendingFetchCallback;
 
         /// <summary>Whether Remote Config is initialized and has fetched values</summary>
-        public static bool IsReady => s_ready;
+        public static bool IsReady { get; private set; }
+
 
         /// <summary>
         ///     Initialize Remote Config with optional defaults.
@@ -58,10 +58,17 @@ namespace Sorolla.Adapters
             });
         }
 
-        private static void InitializeInternal()
+        static void InitializeInternal()
         {
             if (s_init) return;
             s_init = true;
+
+#if UNITY_EDITOR
+            // Disable cache in Editor for faster iteration
+            ConfigSettings settings = FirebaseRemoteConfig.DefaultInstance.ConfigSettings;
+            settings.MinimumFetchIntervalInMilliseconds = 0;
+            FirebaseRemoteConfig.DefaultInstance.SetConfigSettingsAsync(settings);
+#endif
 
             // Set defaults if provided
             if (s_pendingDefaults != null && s_pendingDefaults.Count > 0)
@@ -86,11 +93,11 @@ namespace Sorolla.Adapters
             }
             else if (s_pendingAutoFetch)
             {
-                FetchAndActivate(null);
+                FetchAndActivate();
             }
             else
             {
-                s_ready = true;
+                IsReady = true;
             }
         }
 
@@ -108,7 +115,7 @@ namespace Sorolla.Adapters
                     s_pendingFetchCallback = onComplete;
                     return;
                 }
-                
+
                 Debug.LogWarning($"{Tag} Not initialized");
                 onComplete?.Invoke(false);
                 return;
@@ -122,7 +129,7 @@ namespace Sorolla.Adapters
             FirebaseRemoteConfig.DefaultInstance.FetchAndActivateAsync().ContinueWithOnMainThread(task =>
             {
                 s_fetching = false;
-                s_ready = true;
+                IsReady = true;
 
                 if (task.IsFaulted)
                 {
@@ -149,7 +156,7 @@ namespace Sorolla.Adapters
 
             try
             {
-                var value = FirebaseRemoteConfig.DefaultInstance.GetValue(key).StringValue;
+                string value = FirebaseRemoteConfig.DefaultInstance.GetValue(key).StringValue;
                 return string.IsNullOrEmpty(value) ? defaultValue : value;
             }
             catch (Exception ex)
@@ -172,7 +179,7 @@ namespace Sorolla.Adapters
 
             try
             {
-                var configValue = FirebaseRemoteConfig.DefaultInstance.GetValue(key);
+                ConfigValue configValue = FirebaseRemoteConfig.DefaultInstance.GetValue(key);
                 // If the key doesn't exist (StaticValue with empty string), return default
                 if (configValue.Source == ValueSource.StaticValue && string.IsNullOrEmpty(configValue.StringValue))
                     return defaultValue;
@@ -198,7 +205,7 @@ namespace Sorolla.Adapters
 
             try
             {
-                var configValue = FirebaseRemoteConfig.DefaultInstance.GetValue(key);
+                ConfigValue configValue = FirebaseRemoteConfig.DefaultInstance.GetValue(key);
                 if (configValue.Source == ValueSource.StaticValue && string.IsNullOrEmpty(configValue.StringValue))
                     return defaultValue;
                 return configValue.LongValue;
@@ -213,10 +220,7 @@ namespace Sorolla.Adapters
         /// <summary>
         ///     Get an int value from Remote Config.
         /// </summary>
-        public static int GetInt(string key, int defaultValue = 0)
-        {
-            return (int)GetLong(key, defaultValue);
-        }
+        public static int GetInt(string key, int defaultValue = 0) => (int)GetLong(key, defaultValue);
 
         /// <summary>
         ///     Get a double value from Remote Config.
@@ -231,7 +235,7 @@ namespace Sorolla.Adapters
 
             try
             {
-                var configValue = FirebaseRemoteConfig.DefaultInstance.GetValue(key);
+                ConfigValue configValue = FirebaseRemoteConfig.DefaultInstance.GetValue(key);
                 if (configValue.Source == ValueSource.StaticValue && string.IsNullOrEmpty(configValue.StringValue))
                     return defaultValue;
                 return configValue.DoubleValue;
@@ -246,10 +250,7 @@ namespace Sorolla.Adapters
         /// <summary>
         ///     Get a float value from Remote Config.
         /// </summary>
-        public static float GetFloat(string key, float defaultValue = 0f)
-        {
-            return (float)GetDouble(key, defaultValue);
-        }
+        public static float GetFloat(string key, float defaultValue = 0f) => (float)GetDouble(key, defaultValue);
 
         /// <summary>
         ///     Get all keys from Remote Config.
@@ -259,20 +260,6 @@ namespace Sorolla.Adapters
             if (!s_init) return Array.Empty<string>();
             return FirebaseRemoteConfig.DefaultInstance.Keys;
         }
-
-        /// <summary>
-        ///     Get the last fetch time.
-        /// </summary>
-        public static DateTime LastFetchTime => s_init 
-            ? FirebaseRemoteConfig.DefaultInstance.Info.FetchTime 
-            : DateTime.MinValue;
-
-        /// <summary>
-        ///     Get the last fetch status.
-        /// </summary>
-        public static LastFetchStatus LastFetchStatus => s_init
-            ? FirebaseRemoteConfig.DefaultInstance.Info.LastFetchStatus
-            : LastFetchStatus.Pending;
     }
 }
 #else
