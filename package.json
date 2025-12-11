@@ -21,9 +21,9 @@
   },
   "samples": [
     {
-      "displayName": "Prototype Mode Test",
-      "description": "Beautiful test UI for Prototype mode (GA + Facebook). Dynamic SDK detection, ready-to-use test buttons.",
-      "path": "Samples~/PrototypeTest"
+      "displayName": "Debug UI",
+      "description": "In-game debug panel for testing SDKs, ads, analytics, and ATT/CMP flows",
+      "path": "Samples~/DebugUI"
     }
   ]
 }
