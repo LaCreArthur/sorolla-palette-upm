@@ -56,11 +56,6 @@ namespace Sorolla.Adapters
             Debug.Log("[Sorolla:MAX] Initializing...");
             MaxSdkCallbacks.OnSdkInitializedEvent += OnSdkInit;
             
-            // Suppress deprecation warning - SetSdkKey still works, just needs Integration Manager fallback
-            #pragma warning disable CS0618
-            MaxSdk.SetSdkKey(sdkKey);
-            #pragma warning restore CS0618
-            
             MaxSdk.InitializeSdk();
         }
 
