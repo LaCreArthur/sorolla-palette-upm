@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adjust SDK Android Dependencies for Sorolla SDK
+  These dependencies are automatically resolved by EDM4U (External Dependency Manager)
+  when the package is installed. End users don't need to configure anything manually.
+-->
+<dependencies>
+  <androidPackages>
+    <!-- Google Advertising ID - Required for device identification (GAID/gps_adid) -->
+    <androidPackage spec="com.google.android.gms:play-services-ads-identifier:18.2.0" />
+    
+    <!-- App Set ID - For cross-app attribution within same developer account -->
+    <androidPackage spec="com.google.android.gms:play-services-appset:16.1.0" />
+    
+    <!-- Install Referrer - For Google Play Store attribution -->
+    <androidPackage spec="com.android.installreferrer:installreferrer:2.2" />
+  </androidPackages>
+
+  <iosPods>
+    <!-- iOS dependencies are bundled with the Adjust Unity SDK itself -->
+    <!-- The Adjust SDK's post-build script handles CocoaPods integration -->
+  </iosPods>
+</dependencies>

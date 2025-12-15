@@ -45,13 +45,15 @@ namespace Sorolla.Adapters
         public static void TrackAdRevenue(MaxSdkBase.AdInfo adInfo)
         {
             if (!s_init) return;
-            var adRevenue = new AdjustAdRevenue(AdjustConfig.AdjustAdRevenueSourceAppLovinMAX);
-            adRevenue.setRevenue(adInfo.Revenue, "USD");
-            adRevenue.setAdRevenueNetwork(adInfo.NetworkName);
-            adRevenue.setAdRevenueUnit(adInfo.AdUnitIdentifier);
-            adRevenue.setAdRevenuePlacement(adInfo.Placement);
-            AdjustSdk.Adjust.trackAdRevenue(adRevenue);
+            // Adjust SDK v5 uses string literals for sources and property setters
+            var adRevenue = new AdjustAdRevenue("applovin_max_sdk");
+            adRevenue.SetRevenue(adInfo.Revenue, "USD");
+            adRevenue.AdRevenueNetwork = adInfo.NetworkName;
+            adRevenue.AdRevenueUnit = adInfo.AdUnitIdentifier;
+            adRevenue.AdRevenuePlacement = adInfo.Placement;
+            AdjustSdk.Adjust.TrackAdRevenue(adRevenue);
         }
+
 #else
         public static void TrackAdRevenue(object adInfo) { }
 #endif
