@@ -47,9 +47,6 @@ namespace Sorolla
             {
                 Sorolla.Initialize(status == ATTrackingStatusBinding.AuthorizationTrackingStatus.AUTHORIZED);
             }
-#elif UNITY_EDITOR
-            // Editor: show PreATT → FakeATT flow for testing
-            yield return ShowContextAndRequestEditor();
 #else
             // Android or other - initialize with consent
             Sorolla.Initialize(true);
@@ -121,7 +118,9 @@ namespace Sorolla
 
             // Wait for completion (FakeATTDialog handles the decision)
             while (!completed)
+            {
                 yield return null;
+            }
 
             // In Editor, we just assume consent for simplicity
             Debug.Log("[Sorolla] ATT flow complete (Editor).");
@@ -136,4 +135,3 @@ namespace Sorolla
         }
     }
 }
-
