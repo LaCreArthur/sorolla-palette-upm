@@ -254,18 +254,20 @@ Phase 2: Optimization (v2.3.0)
 
 ---
 
-## Current Sprint (Updated 2025-12-18)
+## Current Sprint (Updated 2025-12-22)
 
 ### Priority: Critical (v2.2.0)
-- [x] **UMP Integration** - Unblock EU/UK ad revenue ✅ COMPLETE
+- [x] **UMP Integration** - Unblock EU/UK ad revenue ✅ COMPLETE & TESTED
   - [x] MAX 8.5.0 already supports UMP (wraps native 13.x) ✓
   - [x] Expose consent status via SorollaSDK API ✓
   - [x] Add SorollaSDK.ShowPrivacyOptions() for settings screen ✓
   - [x] Add SorollaSDK.CanRequestAds property ✓
   - [x] Add SorollaSDK.PrivacyOptionsRequired property ✓
   - [x] Add OnConsentStatusChanged event ✓
-  - [ ] Enable "MAX Terms and Privacy Policy Flow" in Integration Manager (user setup)
-  - [ ] Configure AdMob consent form in Google AdMob dashboard (user setup)
+  - [x] Documentation: gdpr-consent-setup.md ✓
+  - [x] Tested: CMP form displays correctly ✓
+
+  > **Note (2025-12-22)**: After publishing GDPR message in AdMob, allow 2-3 hours for propagation to MAX. During sync period, only basic privacy popup shows - this is expected.
 - [x] **Build Validator** - Must work out-of-box for every studio ✅ COMPLETE
   - [x] Create `Editor/BuildValidator.cs` with 7 validation checks ✓
   - [x] Create `Editor/AndroidManifestSanitizer.cs` for auto-fixing manifest issues ✓

@@ -25,6 +25,38 @@
 
 ---
 
+## 2025-12-22: UMP/CMP Investigation - Propagation Delay Discovery
+
+**Context**:
+- User reported seeing basic privacy policy popup instead of full TCF-compliant CMP form
+- AdMob GDPR message was created and published
+- Integration Manager settings were correct (consent flow enabled, AdMob App IDs set)
+
+**Investigation**:
+- Reviewed all CMP/UMP documentation in repo
+- Researched AppLovin MAX UMP integration online
+- Analyzed email exchange with AppLovin support (Nathan)
+
+**Key Finding**:
+After publishing a GDPR message in AdMob, there's a **propagation delay of up to 2-3 hours** before MAX can retrieve it. During this time:
+- MAX falls back to showing its own basic privacy policy popup
+- This popup is NOT TCF-compliant (AppLovin is not a CMP)
+- Once synced, MAX shows the full Google UMP consent form
+
+**Resolution**:
+No code changes needed. After waiting ~2 hours, the full CMP form appeared automatically.
+
+**Hindsight Insights**:
+- AppLovin's "Terms and Privacy Policy popup" ≠ Google UMP (TCF-compliant CMP)
+- Apps auto-register in MAX dashboard when SDK first initializes (no manual creation needed)
+- AdMob App ID must be in Integration Manager under "Google bidding and Google AdMob" adapter
+- Always wait 2-3 hours after publishing GDPR message before concluding it's broken
+
+**Documentation Updated**:
+- `gdpr-consent-setup.md`: Added propagation delay warning to troubleshooting section
+
+---
+
 ## 2025-12-18: Developer Pain Points Analysis & Implementation Plan
 
 **Changes**:

@@ -274,12 +274,16 @@ Use this checklist to confirm everything is set up correctly:
 
 ## Troubleshooting
 
-### Consent form doesn't appear
+### Consent form doesn't appear (only privacy policy popup shows)
 
-1. Verify GDPR message is published in AdMob (takes a few minutes)
-2. Check you're in GDPR region or have debug geography set
-3. Ensure "Enable MAX Terms and Privacy Policy Flow" is checked
-4. Try uninstalling and reinstalling the app
+> **⚠️ Important**: After publishing your GDPR message in AdMob, there can be a **propagation delay of up to 2-3 hours** before MAX can retrieve it. During this time, you'll only see the basic privacy policy popup instead of the full TCF-compliant consent form. This is normal - wait and test again later.
+
+1. **Wait for propagation** - AdMob GDPR messages can take 2-3 hours to sync with MAX
+2. Verify GDPR message is published in AdMob (not just saved as draft)
+3. Check you're in GDPR region or have debug geography set to GDPR
+4. Ensure "Enable MAX Terms and Privacy Policy Flow" is checked in Integration Manager
+5. Verify AdMob App IDs are entered in Integration Manager under "Google bidding and Google AdMob"
+6. Try uninstalling and reinstalling the app (consent flow only shows to new users)
 
 ### "Limited Ads" still showing
 
