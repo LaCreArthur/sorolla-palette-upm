@@ -199,7 +199,7 @@ namespace Sorolla.Palette
             GameAnalyticsAdapter.TrackDesignEvent(eventName, value);
 
 #if SOROLLA_FACEBOOK_ENABLED
-            var isPrototype = s_config == null || s_config.isPrototypeMode;
+            var isPrototype = Config == null || Config.isPrototypeMode;
             if (isPrototype)
                 FacebookAdapter.TrackEvent(eventName, value);
 #endif
@@ -242,9 +242,18 @@ namespace Sorolla.Palette
 #if SOROLLA_ADJUST_ENABLED && ADJUST_SDK_INSTALLED
         static void InitializeAdjust()
         {
+            if (Config == null)
+            {
+                Debug.LogError($"{Tag} Adjust App Token not configured (Config asset not found). " +
+                    "Create config via: Window > Palette > Configuration");
+                return;
+            }
+            
             if (string.IsNullOrEmpty(Config.adjustAppToken))
             {
-                Debug.LogError($"{Tag} Adjust App Token not configured.");
+                Debug.LogError($"{Tag} Adjust App Token required in Full mode. " +
+                    "Configure via: Window > Palette > Configuration. " +
+                    "Attribution tracking will not work.");
                 return;
             }
 
@@ -252,7 +261,7 @@ namespace Sorolla.Palette
                 ? AdjustEnvironment.Sandbox
                 : AdjustEnvironment.Production;
 
-            Debug.Log($"{Tag} Initializing Adjust ({environment})...");
+            Debug.Log($"{Tag} Initializing Adjust in {environment} environment");
             AdjustAdapter.Initialize(Config.adjustAppToken, environment);
         }
 
@@ -278,16 +287,44 @@ namespace Sorolla.Palette
             HasConsent = consent;
             Config = Resources.Load<SorollaConfig>("SorollaConfig");
 
+            // Determine mode and provide helpful feedback
             bool isPrototype = Config == null || Config.isPrototypeMode;
-            Debug.Log($"{Tag} Initializing ({(isPrototype ? "Prototype" : "Full")} mode, consent: {consent})...");
+            if (Config == null)
+            {
+                Debug.LogWarning($"{Tag} SorollaConfig not found at 'Assets/Resources/SorollaConfig.asset'. " +
+                    "Using Prototype mode defaults. To configure: Window > Palette > Configuration");
+            }
+            else
+            {
+                // Validate configuration and log helpful messages
+                Config.IsValid();
+                Config.ValidateOptionalSettings();
+            }
+            
+            string modeStr = isPrototype ? "Prototype" : "Full";
+            Debug.Log($"{Tag} Initializing in {modeStr} mode (consent: {consent})");
 
-            // GameAnalytics (always)
+            // GameAnalytics (always required)
+#if !GAMEANALYTICS_INSTALLED
+            Debug.LogError($"{Tag} GameAnalytics SDK not installed! " +
+                "This should have been auto-installed. Check Unity Package Manager for import errors. " +
+                "Manual install: https://github.com/GameAnalytics/GA-SDK-UNITY.git#v6.9.1");
+#endif
             GameAnalyticsAdapter.Initialize();
 
-            // Facebook (Prototype mode)
+            // Facebook (Prototype mode only)
 #if SOROLLA_FACEBOOK_ENABLED
             if (isPrototype)
+            {
+                Debug.Log($"{Tag} Initializing Facebook SDK for attribution (Prototype mode)");
                 FacebookAdapter.Initialize(consent);
+            }
+#else
+            if (isPrototype)
+            {
+                Debug.LogWarning($"{Tag} Prototype mode: Facebook SDK not installed. " +
+                    "This should have been auto-installed. Check Unity Package Manager for import errors.");
+            }
 #endif
 
             // MAX (if available) - Adjust will be initialized in MAX callback
@@ -297,45 +334,69 @@ namespace Sorolla.Palette
             // No MAX, initialize Adjust directly (Full mode only)
             if (!isPrototype && Config != null)
                 InitializeAdjust();
+#else
+            if (!isPrototype)
+            {
+                Debug.LogWarning($"{Tag} Full mode: AppLovin MAX not installed. " +
+                    "This should have been auto-installed. Check Unity Package Manager or switch modes via Palette > Configuration.");
+            }
 #endif
 
 
-            // Firebase Analytics (optional)
+            // Firebase Analytics (optional add-on)
 #if FIREBASE_ANALYTICS_INSTALLED
             if (Config != null && Config.enableFirebaseAnalytics)
             {
-                Debug.Log($"{Tag} Initializing Firebase Analytics...");
+                Debug.Log($"{Tag} Initializing Firebase Analytics (optional add-on)");
                 FirebaseAdapter.Initialize();
             }
-            else
+            else if (Config != null && !Config.enableFirebaseAnalytics)
             {
-                Debug.Log($"{Tag} Firebase Analytics disabled (config: {Config != null}, enabled: {Config?.enableFirebaseAnalytics})");
+                Debug.Log($"{Tag} Firebase Analytics disabled in config (optional feature)");
+            }
+#else
+            if (Config != null && Config.enableFirebaseAnalytics)
+            {
+                Debug.LogWarning($"{Tag} Firebase Analytics enabled in config but SDK not installed. " +
+                    "Install Firebase via Palette > Configuration, or disable in config.");
             }
 #endif
 
-            // Firebase Crashlytics (optional)
+            // Firebase Crashlytics (optional add-on)
 #if FIREBASE_CRASHLYTICS_INSTALLED
             if (Config != null && Config.enableCrashlytics)
             {
-                Debug.Log($"{Tag} Initializing Firebase Crashlytics...");
+                Debug.Log($"{Tag} Initializing Firebase Crashlytics (optional add-on)");
                 FirebaseCrashlyticsAdapter.Initialize(captureUncaughtExceptions: true);
             }
-            else
+            else if (Config != null && !Config.enableCrashlytics)
             {
-                Debug.Log($"{Tag} Firebase Crashlytics disabled (config: {Config != null}, enabled: {Config?.enableCrashlytics})");
+                Debug.Log($"{Tag} Firebase Crashlytics disabled in config (optional feature)");
+            }
+#else
+            if (Config != null && Config.enableCrashlytics)
+            {
+                Debug.LogWarning($"{Tag} Firebase Crashlytics enabled in config but SDK not installed. " +
+                    "Install Firebase via Palette > Configuration, or disable in config.");
             }
 #endif
 
-            // Firebase Remote Config (optional)
+            // Firebase Remote Config (optional add-on)
 #if FIREBASE_REMOTE_CONFIG_INSTALLED
             if (Config != null && Config.enableRemoteConfig)
             {
-                Debug.Log($"{Tag} Initializing Firebase Remote Config...");
+                Debug.Log($"{Tag} Initializing Firebase Remote Config (optional add-on)");
                 FirebaseRemoteConfigAdapter.Initialize(autoFetch: true);
             }
-            else
+            else if (Config != null && !Config.enableRemoteConfig)
             {
-                Debug.Log($"{Tag} Firebase Remote Config disabled (config: {Config != null}, enabled: {Config?.enableRemoteConfig})");
+                Debug.Log($"{Tag} Firebase Remote Config disabled in config (optional feature)");
+            }
+#else
+            if (Config != null && Config.enableRemoteConfig)
+            {
+                Debug.LogWarning($"{Tag} Firebase Remote Config enabled in config but SDK not installed. " +
+                    "Install Firebase via Palette > Configuration, or disable in config.");
             }
 #endif
 
@@ -492,13 +553,21 @@ namespace Sorolla.Palette
 #if SOROLLA_MAX_ENABLED && APPLOVIN_MAX_INSTALLED
         static void InitializeMax()
         {
-            if (Config == null || string.IsNullOrEmpty(Config.maxSdkKey))
+            if (Config == null)
             {
-                Debug.LogWarning($"{Tag} MAX SDK Key not configured.");
+                Debug.LogWarning($"{Tag} MAX SDK Key not configured (Config asset not found). " +
+                    "Create config via: Window > Palette > Configuration");
+                return;
+            }
+            
+            if (string.IsNullOrEmpty(Config.maxSdkKey))
+            {
+                Debug.LogWarning($"{Tag} MAX SDK Key not set in config. Configure via: Window > Palette > Configuration. " +
+                    "Ads will not be available.");
                 return;
             }
 
-            Debug.Log($"{Tag} Initializing AppLovin MAX...");
+            Debug.Log($"{Tag} Initializing AppLovin MAX with SDK key");
 
             // Subscribe to ad loading state changes for loading overlay
             MaxAdapter.OnAdLoadingStateChanged += OnMaxAdLoadingStateChanged;

@@ -48,27 +48,63 @@ namespace Sorolla.Palette
         public bool enableRemoteConfig;
 
         /// <summary>
-        ///     Validate configuration for current mode
+        ///     Validate configuration for current mode and provide helpful error messages
         /// </summary>
         public bool IsValid()
         {
             if (isPrototypeMode)
-                return true; // Prototype is lenient
+            {
+                // Prototype mode is lenient - only GameAnalytics is required
+                // Facebook SDK is strongly recommended but optional
+                return true;
+            }
 
             // Full mode requires MAX and Adjust
+            bool isValid = true;
+            
             if (string.IsNullOrEmpty(maxSdkKey))
             {
-                Debug.LogError("[Palette] MAX SDK Key required in Full Mode");
-                return false;
+                Debug.LogError("[Palette] Full Mode: MAX SDK Key is required. " +
+                    "Configure via: Window > Palette > Configuration. " +
+                    "Get your SDK Key from: https://dash.applovin.com/o/account#keys");
+                isValid = false;
             }
 
             if (string.IsNullOrEmpty(adjustAppToken))
             {
-                Debug.LogError("[Palette] Adjust App Token required in Full Mode");
-                return false;
+                Debug.LogError("[Palette] Full Mode: Adjust App Token is required. " +
+                    "Configure via: Window > Palette > Configuration. " +
+                    "Get your App Token from: https://dash.adjust.com");
+                isValid = false;
             }
 
-            return true;
+            return isValid;
+        }
+        
+        /// <summary>
+        ///     Log helpful warnings for missing optional configurations
+        /// </summary>
+        public void ValidateOptionalSettings()
+        {
+            if (isPrototypeMode)
+            {
+                // In prototype mode, warn if common settings are missing
+                if (string.IsNullOrEmpty(maxSdkKey) && string.IsNullOrEmpty(maxRewardedAdUnitId))
+                {
+                    Debug.Log("[Palette] Prototype Mode: MAX SDK not configured. " +
+                        "Ads are optional but recommended for early monetization testing. " +
+                        "Configure via: Window > Palette > Configuration");
+                }
+            }
+            else
+            {
+                // In full mode, warn about missing ad units
+                if (string.IsNullOrEmpty(maxRewardedAdUnitId) && string.IsNullOrEmpty(maxInterstitialAdUnitId))
+                {
+                    Debug.LogWarning("[Palette] Full Mode: No ad units configured. " +
+                        "Add Rewarded or Interstitial ad unit IDs via: Window > Palette > Configuration");
+                }
+            }
         }
     }
 }
