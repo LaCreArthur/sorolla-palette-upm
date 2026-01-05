@@ -74,8 +74,44 @@ namespace Sorolla.Palette.Editor
             ManifestManager.AddDependencies(dependencies);
 
             EditorPrefs.SetBool(SetupKey, true);
+            
+            // Ensure config exists
+            EnsureConfigExists();
+            
             Debug.Log("[Palette] Setup complete. Package Manager will resolve dependencies.");
             Debug.Log("[Palette] Open Palette > Configuration to select a mode.");
+        }
+        
+        /// <summary>
+        ///     Ensure SorollaConfig exists in Resources folder.
+        ///     Creates it automatically if missing for plug-and-play experience.
+        /// </summary>
+        static void EnsureConfigExists()
+        {
+            string[] guids = AssetDatabase.FindAssets("t:SorollaConfig");
+            if (guids.Length > 0)
+            {
+                Debug.Log("[Palette] SorollaConfig found - ready to use.");
+                return;
+            }
+
+            // Config doesn't exist - create it
+            Debug.Log("[Palette] Creating SorollaConfig (required for SDK operation)...");
+            
+            var config = ScriptableObject.CreateInstance<SorollaConfig>();
+
+            if (!AssetDatabase.IsValidFolder("Assets/Resources"))
+            {
+                AssetDatabase.CreateFolder("Assets", "Resources");
+                Debug.Log("[Palette] Created Assets/Resources folder.");
+            }
+
+            string path = "Assets/Resources/SorollaConfig.asset";
+            AssetDatabase.CreateAsset(config, path);
+            AssetDatabase.SaveAssets();
+
+            Debug.Log($"[Palette] SorollaConfig created at: {path}");
+            Debug.Log("[Palette] Configure via: Window > Palette > Configuration");
         }
 
         /// <summary>
