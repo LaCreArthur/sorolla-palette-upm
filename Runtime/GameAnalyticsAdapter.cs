@@ -27,11 +27,13 @@ namespace Sorolla.Palette
                 return;
             }
 
-            Debug.Log($"{Tag} Initializing...");
+            Debug.Log($"{Tag} Initializing GameAnalytics SDK");
             GameAnalytics.Initialize();
             s_init = true;
+            Debug.Log($"{Tag} GameAnalytics ready");
 #else
-            Debug.LogWarning($"{Tag} SDK not installed");
+            Debug.LogWarning($"{Tag} GameAnalytics SDK not installed. Analytics events will not be tracked. " +
+                "Install via Package Manager: https://github.com/GameAnalytics/GA-SDK-UNITY.git#v6.9.1");
             s_init = true;
 #endif
         }
