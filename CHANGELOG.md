@@ -15,6 +15,11 @@ release verdict.
 
 ### Added
 
+- **Greenlight CLI** (`Sorolla.Palette.Editor.GreenlightCli.Report`): headless `-executeMethod`
+  entry point that writes the canonical Copy Report text to a file (`-sorollaReportPath`), waiting
+  for the GameAnalytics credential probe to settle, so CI and command-line workflows can read the
+  exact report the window shows.
+
 - **Launch Readiness report** (Palette window): one pre-build integration verdict - `HEALTHY`,
   `N ISSUES`, `INCOMPLETE`, `FAILING` - aggregated by a single evaluator over a 24-gate catalog,
   with fail/warn/pending/pass counts. A required check with no observation reads `INCOMPLETE`.
