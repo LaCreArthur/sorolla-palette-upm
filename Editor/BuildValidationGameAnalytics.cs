@@ -62,6 +62,32 @@ namespace Sorolla.Palette.Editor
                 results.Add(Valid(category, $"{activeName} has a game key + secret key pair."));
             }
 
+            // The credential probe cannot grade this: the GA collector accepts any platform string on
+            // valid credentials (greenlight probe spike 2026-07-10). Each dashboard platform is its own
+            // game entry with a unique key pair, so one key under two platforms is the mechanical
+            // signature of the paste-the-wrong-slot mistake - both platforms' events land in one
+            // dashboard entry, split only by the platform field.
+            List<(string platform, string gameKey)> pairs = SdkConfigDetector.GetGameAnalyticsPlatformKeys();
+            var byKey = new Dictionary<string, List<string>>();
+            foreach ((string platform, string gameKey) in pairs)
+            {
+                if (!byKey.TryGetValue(gameKey, out List<string> platformNames))
+                    byKey[gameKey] = platformNames = new List<string>();
+                platformNames.Add(platform);
+            }
+            foreach (KeyValuePair<string, List<string>> shared in byKey)
+            {
+                if (shared.Value.Count < 2) continue;
+                results.Add(Warning(
+                    category,
+                    $"{string.Join(" and ", shared.Value)} share one GameAnalytics game key ({shared.Key}).\n" +
+                    "  Each platform in the GameAnalytics dashboard is its own game entry with its own key pair; " +
+                    "shared keys usually mean one platform's keys were pasted into the other's slot, and the " +
+                    "credential probe cannot detect it - both platforms' events land in a single dashboard entry.",
+                    "Paste each platform's own game key + secret key from its GameAnalytics dashboard entry " +
+                    "(intentional single-entry setups can ignore this warning)"));
+            }
+
             return results;
         }
 

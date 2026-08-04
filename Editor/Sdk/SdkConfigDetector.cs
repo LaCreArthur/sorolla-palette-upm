@@ -120,6 +120,45 @@ namespace Sorolla.Palette.Editor
         }
 
         /// <summary>
+        ///     All (platform, game key) pairs configured in GameAnalytics Settings.asset, empty keys
+        ///     skipped. Each GA dashboard platform is its own game entry with a unique key pair, so a
+        ///     key appearing under two platforms is the observable signature of pasting one platform's
+        ///     keys into the other's slot - the credential probe cannot see that (the collector accepts
+        ///     any platform string on valid credentials).
+        /// </summary>
+        public static List<(string platform, string gameKey)> GetGameAnalyticsPlatformKeys()
+        {
+            var pairs = new List<(string, string)>();
+            if (!SdkDetector.IsInstalled(SdkId.GameAnalytics))
+                return pairs;
+
+            try
+            {
+                UnityEngine.Object settings = Resources.Load("GameAnalytics/Settings");
+                if (settings == null)
+                    return pairs;
+
+                Type settingsType = settings.GetType();
+                if (!(settingsType.GetField("Platforms", BindingFlags.Public | BindingFlags.Instance)?.GetValue(settings) is IList platforms))
+                    return pairs;
+                if (!(settingsType.GetField("gameKey", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(settings) is IList gameKeys))
+                    return pairs;
+
+                for (int i = 0; i < platforms.Count && i < gameKeys.Count; i++)
+                {
+                    if (!(platforms[i] is RuntimePlatform p)) continue;
+                    if (gameKeys[i] is string key && !string.IsNullOrEmpty(key))
+                        pairs.Add((p.ToString(), key));
+                }
+            }
+            catch
+            {
+                // Settings.asset shape drift reads as "no pairs", same stance as the other readers here.
+            }
+            return pairs;
+        }
+
+        /// <summary>
         ///     Reads the GameAnalytics game key + secret key pair for the ACTIVE build target from
         ///     Settings.asset. Same reflection approach as <see cref="HasGameAnalyticsKeys"/> - used by
         ///     the GA credential probe, which needs the actual values, not just a presence bool.

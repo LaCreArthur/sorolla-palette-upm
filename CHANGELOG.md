@@ -15,6 +15,12 @@ release verdict.
 
 ### Added
 
+- **GameAnalytics shared-key detection**: the platform-keys check now warns when two platforms
+  share one game key. Each GA dashboard platform is its own game entry with a unique pair, so a
+  shared key is the mechanical signature of pasting one platform's keys into the other's slot -
+  a mistake the credential probe cannot see, because the collector accepts any platform string
+  on valid credentials.
+
 - **Greenlight CLI** (`Sorolla.Palette.Editor.GreenlightCli.Report`): headless `-executeMethod`
   entry point that writes the canonical Copy Report text to a file (`-sorollaReportPath`), waiting
   for the GameAnalytics credential probe to settle, so CI and command-line workflows can read the
