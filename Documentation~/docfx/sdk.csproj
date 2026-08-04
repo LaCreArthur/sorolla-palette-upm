@@ -31,6 +31,7 @@
          The Diagnostics/UITK debug-menu overlay stays IN: Palette.ShowDebugger/HideDebugger/
          ToggleDebugger route to it, so it is reachable public API. It needs UnityEngine.UIElementsModule
          (a Managed core module, referenced below) and UnityEngine.UI/EventSystems (uGUI, referenced below). -->
+    <Compile Include="..\..\Health\**\*.cs" />
     <Compile Include="..\..\Runtime\**\*.cs"
              Exclude="..\..\Runtime\Plugins\**\*.cs;
                       ..\..\Runtime\Adapters\Firebase\**\*.cs;
