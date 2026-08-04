@@ -233,17 +233,22 @@ namespace Sorolla.Palette.Editor
                 if (!configuredScopes.Contains(sdk.Scope))
                 {
                     hasIssues = true;
-                    // Fix hint repointed at reality (F6, 2026-07-21 audit): there is no registry UI in this
-                    // window at all - scopedRegistries lives only in Packages/manifest.json, so the manual
-                    // action names that file. Refresh re-adds the registry for REQUIRED SDKs only, which is
-                    // why it is the retry rather than the primary remedy.
+                    // The registry repair covers every INSTALLED package now, not just the required ones -
+                    // but it runs on the editor path only (the pre-build hook deliberately starts no
+                    // package work mid-build), so the residue is stated as "survives a Refresh" rather than
+                    // "already ran this pass". There is no registry UI in this window at all (F6,
+                    // 2026-07-21 audit) - scopedRegistries lives only in Packages/manifest.json, so the
+                    // manual action names that file.
                     results.Add(Error(
                         ReadinessChecks.ScopedRegistries,
                         $"Missing scoped registry for {sdk.Name}\n" +
                         $"  Required scope: {sdk.Scope}\n" +
                         "  The package resolves from the wrong registry (or not at all) until this scope is " +
-                        "listed.",
-                        $"Add \"{sdk.Scope}\" to the scopedRegistries entry in Packages/manifest.json, " +
+                        "listed.\n" +
+                        "  Palette restores this entry when the Palette window opens or refreshes; if it " +
+                        "survives a Refresh, the write to Packages/manifest.json did not take (read-only " +
+                        "file, or the file is not valid JSON).",
+                        $"Add \"{sdk.Scope}\" to the scopedRegistries entry in Packages/manifest.json by hand, " +
                         "then click Refresh"));
                 }
             }

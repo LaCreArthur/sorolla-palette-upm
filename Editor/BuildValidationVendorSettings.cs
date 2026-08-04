@@ -13,9 +13,15 @@ namespace Sorolla.Palette.Editor
         /// <summary>
         ///     Check AppLovin MAX settings for known issues
         /// </summary>
-        static void CheckMaxSettings(List<ValidationResult> results)
+        internal static void CheckMaxSettings(List<ValidationResult> results)
         {
 #if SOROLLA_MAX_INSTALLED
+            // Findings THIS check produced, not the size of the shared list it appends into: every earlier
+            // check has already appended to it, so an absolute count is never zero in the real pass and the
+            // healthy-path pass below was never emitted - a correctly configured MAX project reported "no
+            // result was produced" and could not read green.
+            int findingsBefore = results.Count;
+
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
                 EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)
             {
@@ -105,7 +111,7 @@ namespace Sorolla.Palette.Editor
             // A missing AdMob id and missing ad units are two separate studio actions, so both findings are
             // produced rather than the first returning early - and both survive evaluation with their own
             // fix, in the window and in the copied report.
-            if (results.Count == 0)
+            if (results.Count == findingsBefore)
                 results.Add(Valid(ReadinessChecks.MaxSettings, "MAX settings synced"));
 #else
             results.Add(Skipped(ReadinessChecks.MaxSettings, "MAX not installed"));
@@ -140,8 +146,16 @@ namespace Sorolla.Palette.Editor
                     $"AdMob application id for {platformName} is empty in AppLovinSettings.\n" +
                     "  The AppLovin consent flow (Google UMP) cannot initialize without it, so no consent " +
                     "is collected and ads do not serve.",
-                    $"Paste the AdMob {platformName} app id (ca-app-pub-…~…) into AppLovin Integration Manager " +
-                    "-> AdMob App ID")
+                    // Names who provisions the id, not just where it goes: the app is created in SOROLLA's
+                    // AdMob account, so a studio cannot generate this value and there is no local source of
+                    // truth for Palette to fill in either - a fix text that only said "paste it" sent studios
+                    // looking for an id that did not exist yet. The destination is the real control on the
+                    // installed AppLovin (8.6.4): a per-platform App ID field on the AdMob row of the
+                    // Mediated Networks list, not a menu path.
+                    $"Request the AdMob {platformName} app id (ca-app-pub-…~…) for this game from Sorolla ops - " +
+                    "it is created in Sorolla's AdMob account - then open the AppLovin Integration Manager " +
+                    $"window and paste it into the \"App ID ({platformName})\" field on the AdMob row of the " +
+                    "Mediated Networks list")
                 : null;
         }
 

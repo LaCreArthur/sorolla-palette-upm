@@ -36,15 +36,21 @@ namespace Sorolla.Palette.Editor
                     results.Add(ConfigSyncIssue(
                         $"SorollaConfig exists at '{actualPath}', not '{ExpectedConfigPath}'.\n" +
                         "  Resources.Load (and the runtime) cannot find it there, so the SDK silently runs unconfigured.",
-                        // Fix points at the in-window Create button, not menu prose (F14) - creating a
-                        // fresh asset there is simpler and safer than moving the misplaced one blind.
-                        $"Click \"Create Configuration Asset\" in this window, or move the existing asset to {ExpectedConfigPath}"));
+                        // Moving the existing asset comes FIRST here: opening the window creates a blank
+                        // config at the canonical path and leaves the misplaced one behind, which would lose
+                        // whatever is already filled in. The collision is named because it is the LIKELY
+                        // state by the time anyone reads this - the window creates that blank one on open,
+                        // so a studio following this remedy finds the destination already occupied. Neither
+                        // remedy names the old "Create Configuration Asset" button - no such control exists.
+                        $"Move the existing asset to {ExpectedConfigPath}, replacing the blank one if opening " +
+                        "Tools > Sorolla Palette SDK already created it - the window creates a blank config " +
+                        "there, and the misplaced asset's settings do not carry over to it"));
                 }
                 else
                 {
                     results.Add(ConfigSyncIssue(
-                        "SorollaConfig not found.",
-                        "Click \"Create Configuration Asset\" in this window"));
+                        "SorollaConfig not found, so the SDK runs unconfigured.",
+                        $"Open Tools > Sorolla Palette SDK - the window creates {ExpectedConfigPath} when it opens"));
                 }
 
                 return;
@@ -66,37 +72,46 @@ namespace Sorolla.Palette.Editor
         }
 
         /// <summary>
-        ///     Editor-workflow repair for package and scoped-registry state. This can trigger asynchronous
-        ///     Unity Package Manager work, so callers must refresh again when package registration settles.
+        ///     Editor-workflow repair for package and scoped-registry state, returning the concrete changes
+        ///     it made. This can trigger asynchronous Unity Package Manager work, so callers must refresh
+        ///     again when package registration settles.
         /// </summary>
-        public static bool ResolveRequiredPackages()
+        public static List<string> ResolveRequiredPackages()
         {
+            var repairs = new List<string>();
+
             var config = Resources.Load<SorollaConfig>("SorollaConfig");
             if (config == null)
-                return false;
+                return repairs;
 
-            bool changed = false;
-            // Auto-install missing required SDKs. The installer also restores their registries.
+            // Auto-install missing required SDKs. Only real manifest additions are reported: a required
+            // package that is present but not yet resolved is offered to the installer on every pass, and
+            // it must not read as a fresh repair each time.
             if (!SdkDetector.AreAllRequiredInstalled(config.isPrototypeMode))
             {
                 string modeName = config.isPrototypeMode ? "Prototype" : "Full";
                 Debug.Log($"{Tag} Auto-fixing: Installing missing required SDKs for {modeName} mode...");
-                SdkInstaller.InstallRequiredSdks(config.isPrototypeMode);
-                changed = true;
-            }
-            else if (SdkInstaller.EnsureRequiredRegistries(config.isPrototypeMode))
-            {
-                // Installed assemblies do not prove their manifest registry entries still exist.
-                changed = true;
+                foreach (SdkInfo sdk in SdkInstaller.InstallRequiredSdks(config.isPrototypeMode))
+                    repairs.Add($"Added {sdk.Name} to Packages/manifest.json - {modeName} mode requires it " +
+                                "(Package Manager is resolving it)");
             }
 
-            if (changed)
+            // Unconditionally, not as the alternative to installing: the install path covers the registries
+            // of the REQUIRED set only, so an installed optional capability with a missing scope would be
+            // left unrepaired precisely on the passes where something else needed installing - and the
+            // check's residue text would then blame a write failure on a repair that never ran. Repeating
+            // it after an install is free: it only writes when an entry is actually absent.
+            foreach (SdkInfo sdk in SdkInstaller.EnsureInstalledRegistries())
+                repairs.Add($"Restored the scoped registry for {sdk.Name} ({sdk.Scope}) in " +
+                            "Packages/manifest.json");
+
+            if (repairs.Count > 0)
             {
                 AssetDatabase.SaveAssets();
                 Debug.Log($"{Tag} Config sync issues auto-fixed");
             }
 
-            return changed;
+            return repairs;
         }
     }
 }

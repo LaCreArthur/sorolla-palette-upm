@@ -54,9 +54,15 @@ namespace Sorolla.Palette.Editor
 
         const int TimeoutSeconds = 3;
 
+        // The configuration the CURRENT result describes - Pending while its probe is in flight, settled
+        // once it lands. The key answers "does this configuration still need a probe"; the monotonic id
+        // answers "is this arriving answer still the one we are waiting for". They are different
+        // questions: an app id edited away and back inside the timeout window produces the SAME key
+        // twice, so keying the settle on configuration would let the first, slower request publish last
+        // and win. Only the newest request's id can publish.
         static ProbeResult s_lastResult = new ProbeResult(ProbeState.NotStarted, null, null, null, 0);
         static string s_lastRequestKey;
-        static bool s_requestInFlight;
+        static int s_lastRequestId;
 
         /// <summary>Fired on the main thread once a probe settles, so the window can refresh Build Health.</summary>
         internal static event Action OnProbeSettled;
@@ -101,14 +107,10 @@ namespace Sorolla.Palette.Editor
             string platformName = ActivePlatformName();
             if (platformName == null)
                 return;
-            string key = $"{appId}|{clientToken}|{platformName}";
-            if (s_requestInFlight || s_lastRequestKey == key)
-                return;
 
-            s_lastRequestKey = key;
-            s_requestInFlight = true;
-            s_lastResult = new ProbeResult(ProbeState.Pending, appId, platformName,
-                "Checking Facebook app platform registration...", EditorApplication.timeSinceStartup);
+            int requestId = BeginProbe(appId, clientToken, platformName);
+            if (requestId == NoProbeNeeded)
+                return;
 
             string accessToken = Uri.EscapeDataString(appId + "|" + clientToken);
             string url = $"https://graph.facebook.com/{Uri.EscapeDataString(appId)}?fields=supported_platforms&access_token={accessToken}";
@@ -118,11 +120,51 @@ namespace Sorolla.Palette.Editor
             UnityWebRequestAsyncOperation op = request.SendWebRequest();
             op.completed += _ =>
             {
-                s_requestInFlight = false;
-                s_lastResult = Evaluate(request, appId, platformName);
+                ProbeResult settled = Evaluate(request, appId, platformName);
                 request.Dispose();
-                OnProbeSettled?.Invoke();
+                Settle(requestId, settled);
             };
+        }
+
+        /// <summary>Returned by <see cref="BeginProbe"/> when the current configuration is already covered
+        /// (settled, or in flight) and no request is needed. Ids start at 1.</summary>
+        internal const int NoProbeNeeded = 0;
+
+        /// <summary>
+        ///     Claims the cache for this configuration and returns the id its probe must settle under, or
+        ///     <see cref="NoProbeNeeded"/> when the current configuration is already covered.
+        ///
+        ///     A configuration change while a request is in flight STARTS the new probe instead of being
+        ///     dropped: the old guard returned early whenever anything was in flight, so a newer app id or
+        ///     build target was silently discarded and the older probe settled over it. Issuing a fresh id
+        ///     here is what makes every superseded answer identifiable when it arrives - see
+        ///     <see cref="Settle"/>.
+        /// </summary>
+        internal static int BeginProbe(string appId, string clientToken, string platformName)
+        {
+            string key = $"{appId}|{clientToken}|{platformName}";
+            if (s_lastRequestKey == key)
+                return NoProbeNeeded;
+
+            s_lastRequestKey = key;
+            s_lastRequestId++;
+            s_lastResult = new ProbeResult(ProbeState.Pending, appId, platformName,
+                "Checking Facebook app platform registration...", EditorApplication.timeSinceStartup);
+            return s_lastRequestId;
+        }
+
+        /// <summary>
+        ///     Publishes a settled probe, unless a newer request has been issued while it was in flight -
+        ///     that result answers a question the project no longer asks, and the request that replaced it
+        ///     is already Pending and will publish its own answer.
+        /// </summary>
+        internal static void Settle(int requestId, ProbeResult result)
+        {
+            if (requestId != s_lastRequestId)
+                return;
+
+            s_lastResult = result;
+            OnProbeSettled?.Invoke();
         }
 
         static ProbeResult Evaluate(UnityWebRequest request, string appId, string platformName)

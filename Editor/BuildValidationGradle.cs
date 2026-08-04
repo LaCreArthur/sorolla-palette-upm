@@ -82,18 +82,61 @@ namespace Sorolla.Palette.Editor
             }
 
             string props = File.ReadAllText(GradlePropertiesPath);
-            if (props.Contains("org.gradle.java.home"))
+            if (HasGradleJavaHomeLine(props))
             {
+                // Residue of a repair that already ran this pass: the auto-fix deletes this line itself, so
+                // reaching this branch means the write did not take (read-only file).
                 results.Add(Warning(
                     category,
                     "gradleTemplate.properties has a hardcoded org.gradle.java.home line.\n" +
-                    "  That path is machine-local; committing it breaks every other teammate's Gradle build (\"Java home supplied is invalid\").",
-                    "Delete the org.gradle.java.home line from gradleTemplate.properties and commit the removal"));
+                    "  That path is machine-local; committing it breaks every other teammate's Gradle build (\"Java home supplied is invalid\").\n" +
+                    "  Palette deletes this line automatically; it is still there, so the write to " +
+                    "Assets/Plugins/Android/gradleTemplate.properties did not take.",
+                    "Make gradleTemplate.properties writable, then click Refresh - or delete the " +
+                    "org.gradle.java.home line by hand and commit the removal"));
             }
             else
             {
                 results.Add(Valid(category, "No hardcoded org.gradle.java.home"));
             }
+        }
+
+        /// <summary>
+        ///     One line-level predicate for the hardcoded JDK path, shared by the check and the repair that
+        ///     deletes it, so the two can never disagree about what counts. A COMMENTED-out line is left
+        ///     alone and does not count: Gradle ignores it, it is the studio's own note, and flagging
+        ///     something the repair deliberately will not touch is a row that can never clear.
+        /// </summary>
+        internal static bool IsGradleJavaHomeLine(string line) =>
+            line.TrimStart().StartsWith("org.gradle.java.home", StringComparison.Ordinal);
+
+        internal static bool HasGradleJavaHomeLine(string properties)
+        {
+            if (string.IsNullOrEmpty(properties)) return false;
+
+            foreach (string line in properties.Split('\n'))
+                if (IsGradleJavaHomeLine(line))
+                    return true;
+            return false;
+        }
+
+        /// <summary>
+        ///     Deletes the hardcoded JDK path lines from a committed gradleTemplate.properties, preserving
+        ///     every other line and its line endings. Returns the original string when there is nothing to
+        ///     remove. Safe to automate where the Kotlin/R8 Gradle edits are not: a .properties file is
+        ///     line-oriented key=value, so this identifies one exact owned line without parsing arbitrary
+        ///     user Gradle.
+        /// </summary>
+        internal static string RemoveGradleJavaHomeLines(string properties)
+        {
+            if (!HasGradleJavaHomeLine(properties)) return properties;
+
+            var kept = new List<string>();
+            foreach (string line in properties.Split('\n'))
+                if (!IsGradleJavaHomeLine(line))
+                    kept.Add(line);
+
+            return string.Join("\n", kept);
         }
 
         internal static bool HasJava11CompileOptions(string gradle) =>

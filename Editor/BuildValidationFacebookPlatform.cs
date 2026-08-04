@@ -35,16 +35,13 @@ namespace Sorolla.Palette.Editor
                 return;
             }
 
+            // Current is always this configuration's result: EnsureChecked claims the cache for the app
+            // id/platform in hand before returning (Pending until its own probe lands), and a probe for a
+            // superseded configuration is dropped rather than published. Staleness is the validator's to
+            // prevent, not this row's to detect.
             FacebookPlatformValidator.EnsureChecked(appId, clientToken);
             FacebookPlatformValidator.ProbeResult probe = FacebookPlatformValidator.Current;
-
-            // The cached result carries the app id and platform it was probed for. EnsureChecked starts a
-            // fresh probe when either changed, but Current still holds the OLD settled result until that one
-            // lands - so grading it here would judge this project by another app id's or another build
-            // target's answer.
-            bool probeIsCurrent = probe.AppId == appId
-                && probe.PlatformName == FacebookPlatformValidator.ActivePlatformName();
-            results.Add(GradeFacebookPlatform(true, probe.State, probe.Detail, probeIsCurrent));
+            results.Add(GradeFacebookPlatform(true, probe.State, probe.Detail));
         }
 
         /// <summary>
@@ -54,8 +51,7 @@ namespace Sorolla.Palette.Editor
         internal static ValidationResult GradeFacebookPlatform(
             bool hasCredentials,
             FacebookPlatformValidator.ProbeState state,
-            string detail,
-            bool probeIsCurrent = true)
+            string detail)
         {
             ReadinessCheck category = ReadinessChecks.FacebookPlatformConfig;
 
@@ -75,13 +71,6 @@ namespace Sorolla.Palette.Editor
                 state == FacebookPlatformValidator.ProbeState.Pending)
             {
                 return Unverifiable(category, "Checking Facebook app platform registration...");
-            }
-
-            if (!probeIsCurrent)
-            {
-                return Unverifiable(category,
-                    "The cached Facebook result was probed for a different app id or build target.",
-                    "Click Refresh to re-check this app id against the active build target");
             }
 
             switch (state)

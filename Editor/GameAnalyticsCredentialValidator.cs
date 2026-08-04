@@ -49,9 +49,14 @@ namespace Sorolla.Palette.Editor
         const int TimeoutSeconds = 3;
         const string CollectorHost = "https://api.gameanalytics.com/v2";
 
+        // The credential pair the CURRENT result describes - Pending while its probe is in flight, settled
+        // once it lands. Mirrors FacebookPlatformValidator: the key answers "do these credentials still
+        // need a probe", the monotonic id answers "is this arriving answer still the one we are waiting
+        // for". A key pair edited away and back inside the timeout window repeats the same key, so only
+        // the newest request's id may publish.
         static ProbeResult s_lastResult = new ProbeResult(ProbeState.NotStarted, null, null, 0);
         static string s_lastRequestKey;
-        static bool s_requestInFlight;
+        static int s_lastRequestId;
 
         /// <summary>Fired on the main thread once a probe settles, so the window can refresh Build Health.</summary>
         internal static event Action OnProbeSettled;
@@ -76,14 +81,9 @@ namespace Sorolla.Palette.Editor
             if (platform == null)
                 return;
 
-            string key = $"{gameKey}|{secretKey}";
-            if (s_requestInFlight || s_lastRequestKey == key)
+            int requestId = BeginProbe(gameKey, secretKey);
+            if (requestId == NoProbeNeeded)
                 return;
-
-            s_lastRequestKey = key;
-            s_requestInFlight = true;
-            s_lastResult = new ProbeResult(ProbeState.Pending, gameKey,
-                "Checking GameAnalytics credentials...", EditorApplication.timeSinceStartup);
 
             string body = "{\"platform\":\"" + platform + "\",\"os_version\":\"" + platform + " 1.0\",\"sdk_version\":\"rest api v2\"}";
             byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
@@ -101,11 +101,52 @@ namespace Sorolla.Palette.Editor
             UnityWebRequestAsyncOperation op = request.SendWebRequest();
             op.completed += _ =>
             {
-                s_requestInFlight = false;
-                s_lastResult = Evaluate(request, gameKey);
+                ProbeResult settled = Evaluate(request, gameKey);
                 request.Dispose();
-                OnProbeSettled?.Invoke();
+                Settle(requestId, settled);
             };
+        }
+
+        /// <summary>Returned by <see cref="BeginProbe"/> when the current credentials are already covered
+        /// (settled, or in flight) and no request is needed. Ids start at 1.</summary>
+        internal const int NoProbeNeeded = 0;
+
+        /// <summary>
+        ///     Claims the cache for this credential pair and returns the id its probe must settle under, or
+        ///     <see cref="NoProbeNeeded"/> when the current credentials are already covered.
+        ///
+        ///     A credential change while a request is in flight STARTS the new probe instead of being
+        ///     dropped: the old guard returned early whenever anything was in flight, so newly pasted keys
+        ///     were silently discarded and the older probe settled over them - a corrected key pair kept
+        ///     reading as rejected. The active platform is deliberately NOT part of the key: the collector
+        ///     accepts any platform string on valid credentials, so switching build target cannot change
+        ///     this verdict (see the scope note above).
+        /// </summary>
+        internal static int BeginProbe(string gameKey, string secretKey)
+        {
+            string key = $"{gameKey}|{secretKey}";
+            if (s_lastRequestKey == key)
+                return NoProbeNeeded;
+
+            s_lastRequestKey = key;
+            s_lastRequestId++;
+            s_lastResult = new ProbeResult(ProbeState.Pending, gameKey,
+                "Checking GameAnalytics credentials...", EditorApplication.timeSinceStartup);
+            return s_lastRequestId;
+        }
+
+        /// <summary>
+        ///     Publishes a settled probe, unless a newer request has been issued while it was in flight -
+        ///     that result answers a question the project no longer asks, and the request that replaced it
+        ///     is already Pending and will publish its own answer.
+        /// </summary>
+        internal static void Settle(int requestId, ProbeResult result)
+        {
+            if (requestId != s_lastRequestId)
+                return;
+
+            s_lastResult = result;
+            OnProbeSettled?.Invoke();
         }
 
         static string ComputeAuthHeader(byte[] bodyBytes, string secretKey)

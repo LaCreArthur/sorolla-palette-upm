@@ -7,7 +7,8 @@ namespace Sorolla.Palette.Editor.Tests
 {
     /// <summary>
     ///     Regressions for the 4.0.1 trust patch: each of these configurations used to read as a
-    ///     non-failure while the integration was provably broken.
+    ///     non-failure while the integration was provably broken - plus the inverse defect, a row that
+    ///     produced no verdict at all on a project that was fine.
     /// </summary>
     [TestFixture]
     public class VendorFalseGreenTests
@@ -61,16 +62,6 @@ namespace Sorolla.Palette.Editor.Tests
         }
 
         [Test]
-        public void Facebook_StaleProbeForAnotherAppOrTarget_IsIncompleteNotAFailure()
-        {
-            BuildValidator.ValidationResult result = BuildValidator.GradeFacebookPlatform(
-                true, FacebookPlatformValidator.ProbeState.PlatformMissing, "stale detail", probeIsCurrent: false);
-
-            Assert.AreEqual(BuildValidator.ValidationStatus.Unverifiable, result.Status);
-            Assert.That(result.Message, Does.Not.Contain("stale detail"));
-        }
-
-        [Test]
         public void Facebook_SuccessWithEmptySupportedPlatforms_IsPlatformMissingError()
         {
             Assert.AreEqual(
@@ -121,8 +112,12 @@ namespace Sorolla.Palette.Editor.Tests
             BuildValidator.ValidationResult result = BuildValidator.GradeMaxAdMobAppId("", "Android");
 
             Assert.AreEqual(BuildValidator.ValidationStatus.Error, result.Status);
-            Assert.That(result.Fix, Does.Contain("AdMob App ID"));
-            Assert.That(result.Fix, Does.Contain("Android"));
+            // The control that exists (AppLovin 8.6.4): a per-platform App ID field on the AdMob row of the
+            // Integration Manager's Mediated Networks list.
+            Assert.That(result.Fix, Does.Contain("App ID (Android)"));
+            Assert.That(result.Fix, Does.Contain("Integration Manager"));
+            // ...and who provisions it, since the studio cannot generate one.
+            Assert.That(result.Fix, Does.Contain("Sorolla ops"));
         }
 
         [Test]
@@ -144,6 +139,53 @@ namespace Sorolla.Palette.Editor.Tests
             Assert.That(result.Message, Does.Contain("Could not read"));
             Assert.That(result.Message, Does.Not.Contain("is empty"));
         }
+
+        /// <summary>
+        ///     Producers append into the SHARED result list every other check writes to, so a producer that
+        ///     asks whether that list is empty is asking about its neighbours, not about itself. The MAX
+        ///     check did exactly that and therefore never emitted its healthy-path pass: the row went to the
+        ///     evaluator with zero observations, which a Required row reports as "no result was produced" -
+        ///     a correctly configured project told to send a report to Sorolla.
+        ///
+        ///     Running it BOTH ways and comparing is what makes this state-independent. A single run can
+        ///     only assert something that happens to be true of this machine's project; two runs assert the
+        ///     property that was actually broken - what the check reports must not depend on what its
+        ///     neighbours already reported. The old code fails this in the healthy case (fresh list emits a
+        ///     pass, pre-populated emits nothing) and passes it in the broken case, which is exactly why a
+        ///     fresh-list-only fixture let the defect through.
+        ///
+        ///     Note: this exercises the live check, so the MAX settings sanitizers run - the same idempotent
+        ///     writes the editor already performs on every validation pass and domain reload.
+        /// </summary>
+        [Test]
+        public void MaxSettings_ReportsTheSame_WhateverElseIsAlreadyInTheSharedList()
+        {
+            var fresh = new List<BuildValidator.ValidationResult>();
+            BuildValidator.CheckMaxSettings(fresh);
+
+            var shared = new List<BuildValidator.ValidationResult>
+            {
+                Observed(ReadinessChecks.RequiredSdks, BuildValidator.ValidationStatus.Valid, "earlier check"),
+                Observed(ReadinessChecks.ConfigSync, BuildValidator.ValidationStatus.Valid, "earlier check"),
+            };
+            BuildValidator.CheckMaxSettings(shared);
+            List<BuildValidator.ValidationResult> emitted = shared.Skip(2).ToList();
+
+            CollectionAssert.IsNotEmpty(fresh,
+                "The MAX check produced no observation at all, which the evaluator reports as a missing result.");
+            CollectionAssert.AreEqual(
+                fresh.Select(Identity).ToList(),
+                emitted.Select(Identity).ToList(),
+                "The MAX check reported different things depending on what its neighbours had already appended.");
+            CollectionAssert.AreEquivalent(
+                new[] { ReadinessChecks.MaxSettings },
+                emitted.Select(r => r.Check).Distinct().ToList());
+        }
+
+        /// <summary>ValidationResult has reference equality, so findings are compared by what they say.</summary>
+        static (BuildValidator.ValidationStatus, string, string, ReadinessCheck) Identity(
+            BuildValidator.ValidationResult result) =>
+            (result.Status, result.Message, result.Fix, result.Check);
 
         [Test]
         public void Firebase_ConfigCheckApplies_ToAnyInstalledFirebaseModule()

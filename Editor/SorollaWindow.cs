@@ -274,8 +274,7 @@ namespace Sorolla.Palette.Editor
 
             _autoFixLog.Clear();
 
-            if (BuildValidator.ResolveRequiredPackages())
-                _autoFixLog.Add("Resolving required SDK packages / registries");
+            _autoFixLog.AddRange(BuildValidator.ResolveRequiredPackages());
             _autoFixLog.AddRange(BuildValidator.RunSafeAutoFixes());
 
             _validationResults = BuildValidator.RunAllChecks();

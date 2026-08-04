@@ -166,25 +166,43 @@ namespace Sorolla.Palette.Editor
             var fixes = new List<string>();
 
             // AndroidManifest sanitization - captures diagnostics to skip re-detection in RunAllChecks
-            AndroidManifestSanitizer.ManifestDiagnostics diag = AndroidManifestSanitizer.SanitizeWithDiagnostics(refreshAssetDatabase: false);
-            fixes.AddRange(diag.Fixes);
-            _lastManifestDiagnostics = diag;
+            Repair("AndroidManifest sanitizer", () =>
+            {
+                AndroidManifestSanitizer.ManifestDiagnostics diag = AndroidManifestSanitizer.SanitizeWithDiagnostics(refreshAssetDatabase: false);
+                fixes.AddRange(diag.Fixes);
+                _lastManifestDiagnostics = diag;
+            });
 
             // MAX SDK key - sync shared publisher key before validating AppLovin settings
-            if (MaxSettingsSanitizer.SyncEmbeddedSdkKey())
-                fixes.Add("Synced AppLovin MAX SDK key");
+            Repair("AppLovin MAX SDK key sync", () =>
+            {
+                if (MaxSettingsSanitizer.SyncEmbeddedSdkKey())
+                    fixes.Add("Synced AppLovin MAX SDK key");
+            });
 
             // MAX Ad Review - auto-enable Quality Service
-            if (MaxSettingsSanitizer.EnableQualityService())
-                fixes.Add("Enabled AppLovin Ad Review (Quality Service)");
+            Repair("AppLovin Ad Review", () =>
+            {
+                if (MaxSettingsSanitizer.EnableQualityService())
+                    fixes.Add("Enabled AppLovin Ad Review (Quality Service)");
+            });
 
             // MAX Consent Flow - sync shared publisher privacy policy URL
-            if (MaxSettingsSanitizer.SyncConsentFlowSettings())
-                fixes.Add("Synced AppLovin consent flow settings");
+            Repair("AppLovin consent flow sync", () =>
+            {
+                if (MaxSettingsSanitizer.SyncConsentFlowSettings())
+                    fixes.Add("Synced AppLovin consent flow settings");
+            });
 
             // GameAnalytics whitelist spelling: only entries that already mean a value Palette sends, only
             // rewritten to that exact value. Nothing added, nothing removed.
-            fixes.AddRange(FixGameAnalyticsWhitelistSpelling());
+            Repair("GameAnalytics whitelist spelling",
+                () => fixes.AddRange(FixGameAnalyticsWhitelistSpelling()));
+
+            // GameAnalytics item types: written in full where currencies are configured and item types are
+            // empty. Runs after the spelling pass, which is a no-op on values written straight from the
+            // vocabulary.
+            Repair("GameAnalytics item types", () => fixes.AddRange(FillGameAnalyticsItemTypes()));
 
             // Gradle config auto-fixes (Android only)
             if (EditorUserBuildSettings.activeBuildTarget == BuildTarget.Android)
@@ -192,42 +210,96 @@ namespace Sorolla.Palette.Editor
                 // compileOptions: Java 11 → 17 (both mainTemplate and launcherTemplate)
                 foreach (string templatePath in GradleTemplatePaths)
                 {
-                    if (!File.Exists(templatePath)) continue;
-                    string gradle = File.ReadAllText(templatePath);
-                    if (gradle.Contains("VERSION_11") && (gradle.Contains("sourceCompatibility") || gradle.Contains("targetCompatibility")))
+                    Repair($"{Path.GetFileName(templatePath)} compileOptions", () =>
                     {
-                        gradle = gradle.Replace("VERSION_11", "VERSION_17");
-                        File.WriteAllText(templatePath, gradle);
-                        fixes.Add($"Upgraded {Path.GetFileName(templatePath)} compileOptions: Java 11 → 17 (required by Firebase/MAX/Kotlin)");
-                    }
+                        if (!File.Exists(templatePath)) return;
+                        string gradle = File.ReadAllText(templatePath);
+                        if (gradle.Contains("VERSION_11") && (gradle.Contains("sourceCompatibility") || gradle.Contains("targetCompatibility")))
+                        {
+                            gradle = gradle.Replace("VERSION_11", "VERSION_17");
+                            File.WriteAllText(templatePath, gradle);
+                            fixes.Add($"Upgraded {Path.GetFileName(templatePath)} compileOptions: Java 11 → 17 (required by Firebase/MAX/Kotlin)");
+                        }
+                    });
                 }
 
                 // R8 pin removal (Unity 6 only - AGP 8.x bundles modern R8, pin causes NoSuchMethodError)
 #if UNITY_6000_0_OR_NEWER
-                if (File.Exists(BaseProjectTemplatePath))
+                Repair("baseProjectTemplate.gradle R8 pin", () =>
                 {
+                    if (!File.Exists(BaseProjectTemplatePath)) return;
                     string baseGradle = File.ReadAllText(BaseProjectTemplatePath);
-                    if (baseGradle.Contains("com.android.tools:r8"))
-                    {
-                        // Remove the buildscript { ... } block using brace matching
-                        string cleaned = RemoveBuildscriptBlock(baseGradle);
-                        if (cleaned != baseGradle)
-                        {
-                            File.WriteAllText(BaseProjectTemplatePath, cleaned);
-                            fixes.Add("Removed R8 version pin from baseProjectTemplate.gradle - incompatible with AGP 8.x");
-                            Debug.Log($"{Tag} Removed R8 pin from baseProjectTemplate.gradle (revert via git if needed)");
-                        }
-                    }
-                }
+                    if (!baseGradle.Contains("com.android.tools:r8")) return;
+
+                    // Remove the buildscript { ... } block using brace matching
+                    string cleaned = RemoveBuildscriptBlock(baseGradle);
+                    if (cleaned == baseGradle) return;
+
+                    File.WriteAllText(BaseProjectTemplatePath, cleaned);
+                    fixes.Add("Removed R8 version pin from baseProjectTemplate.gradle - incompatible with AGP 8.x");
+                    Debug.Log($"{Tag} Removed R8 pin from baseProjectTemplate.gradle (revert via git if needed)");
+                });
 #endif
 
                 // org.gradle.java.home (Unity 2022 only - Unity 6+ bundles JDK 17) is injected at BUILD
                 // TIME into the generated gradle.properties by GradlePropertiesFixer, never into the
                 // committed gradleTemplate.properties: writing an absolute machine-local JDK path into a
-                // version-controlled file breaks every other machine (B-16).
+                // version-controlled file breaks every other machine (B-16). Any such line already in the
+                // committed template is that broken state, so it is deleted rather than reported: the path
+                // points at one developer's JDK and is worthless to everyone else, including its author
+                // once they change machines.
+                Repair("gradleTemplate.properties JDK path", () =>
+                {
+                    if (!File.Exists(GradlePropertiesPath)) return;
+                    string props = File.ReadAllText(GradlePropertiesPath);
+                    string cleaned = RemoveGradleJavaHomeLines(props);
+                    if (cleaned == props) return;
+
+                    File.WriteAllText(GradlePropertiesPath, cleaned);
+                    fixes.Add("Removed the hardcoded org.gradle.java.home line from " +
+                              "gradleTemplate.properties - that JDK path is machine-local and breaks " +
+                              "every other machine's Gradle build");
+                    Debug.Log($"{Tag} Removed org.gradle.java.home from gradleTemplate.properties " +
+                              "(the JDK home is injected into the generated gradle.properties at build time)");
+                });
             }
 
+            // Repairs above write either a project FILE (on disk the moment they return) or a serialized
+            // ASSET (dirtied in memory only). This is the flush owner for the second kind: without it a
+            // repair reports success, the check re-reads the same cached in-memory object and agrees, and
+            // the file on disk never changes - a green row over an unrepaired project if the editor dies
+            // before Unity flushes, or if the asset is read-only.
+            Repair("save repaired assets", () =>
+            {
+                if (fixes.Count > 0)
+                    AssetDatabase.SaveAssets();
+            });
+
             return fixes;
+        }
+
+        /// <summary>
+        ///     Runs one repair in isolation, mirroring <see cref="Run"/>'s check isolation. A repair that
+        ///     throws (a read-only Gradle template raises UnauthorizedAccessException) names itself in the
+        ///     log and every later repair still runs.
+        ///
+        ///     The pass must always return: the window renders its rows from the checks that run AFTER
+        ///     this, and the pre-build hook runs it before validation - so one throwing repair used to
+        ///     leave a rowless window, or surface as a raw exception that fails a build with no diagnosis.
+        ///     A failed repair is deliberately NOT added to the returned list: that list is "repairs
+        ///     applied" and is rendered as such. The residue is the check's to report, which it does,
+        ///     because the thing the repair could not fix is still there for it to find.
+        /// </summary>
+        static void Repair(string name, Action repair)
+        {
+            try
+            {
+                repair();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"{Tag} auto-fix '{name}' failed: {e}");
+            }
         }
 
         /// <summary>

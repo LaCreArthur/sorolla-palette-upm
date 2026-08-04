@@ -138,12 +138,22 @@ namespace Sorolla.Palette.Editor
                                   itemTypesProperty.arraySize == 0;
             if (itemTypesEmpty)
             {
+                // Residue of a repair that already ran this pass, and there is exactly ONE way to reach it:
+                // the auto-fix fills this list whenever currencies are configured, and its write is to the
+                // in-memory serialized object, which cannot fail on a read-only file. So the list is still
+                // empty only because the repair found no writable ResourceItemTypes array at all - a
+                // GameAnalytics version that renamed or retyped the field. Naming a file-permission cause
+                // here would send the studio after something that is not happening.
                 results.Add(Warning(
                     category,
                     "GameAnalytics ResourceItemTypes whitelist is empty while ResourceCurrencies is filled in.\n" +
                     "  Palette sends the earn source / spend sink in that slot on every economy call, so every " +
-                    "resource event is still dropped.",
-                    $"Add the categories this game uses to Resource Item Types; Palette sends: {string.Join(", ", EconomyVocabulary.ItemTypes())}"));
+                    "resource event is still dropped.\n" +
+                    "  Palette fills this list automatically and could not: this GameAnalytics version does " +
+                    "not expose ResourceItemTypes as a list Palette can write.",
+                    "Add these values to Resource Item Types by hand: " +
+                    $"{string.Join(", ", EconomyVocabulary.ItemTypes())} - then send this report to Sorolla, " +
+                    "because Palette needs updating for this GameAnalytics version"));
                 return;
             }
 
@@ -167,6 +177,45 @@ namespace Sorolla.Palette.Editor
                     $"ResourceCurrencies: {resourceCurrenciesProperty.arraySize} configured, " +
                     $"ResourceItemTypes: {itemTypesProperty.arraySize} configured; " +
                     "every entry naming a Palette value is spelled as sent"));
+        }
+
+        /// <summary>
+        ///     Fills an empty GameAnalytics ResourceItemTypes whitelist with Palette's own economy
+        ///     vocabulary. Deterministic in a way the CURRENCY list can never be: the item-type slot carries
+        ///     Palette's curated EconomySource/EconomySink categories on every economy call, so the complete
+        ///     correct list is SDK-owned and nothing about the game is guessed. The currency list is left
+        ///     alone - those names belong to the game.
+        ///
+        ///     Gated on currencies already being configured: an empty currency list means the studio never
+        ///     opted into GameAnalytics economy tracking (the check grades that as optional), and writing
+        ///     whitelists into a project that made no such choice is an edit nobody asked for.
+        /// </summary>
+        internal static List<string> FillGameAnalyticsItemTypes()
+        {
+            var fixes = new List<string>();
+            if (!SdkDetector.IsInstalled(SdkId.GameAnalytics)) return fixes;
+
+            Object settings = Resources.Load("GameAnalytics/Settings");
+            if (settings == null) return fixes;
+
+            var serialized = new SerializedObject(settings);
+            SerializedProperty currencies = serialized.FindProperty("ResourceCurrencies");
+            SerializedProperty itemTypes = serialized.FindProperty("ResourceItemTypes");
+
+            if (currencies == null || !currencies.isArray || currencies.arraySize == 0) return fixes;
+            // Not readable as a list (a GameAnalytics version that renamed the field) or already populated:
+            // either way there is nothing deterministic to write, and the check reports what it finds.
+            if (itemTypes == null || !itemTypes.isArray || itemTypes.arraySize != 0) return fixes;
+
+            string[] sent = EconomyVocabulary.ItemTypes();
+            itemTypes.arraySize = sent.Length;
+            for (int i = 0; i < sent.Length; i++)
+                itemTypes.GetArrayElementAtIndex(i).stringValue = sent[i];
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            fixes.Add($"Filled the empty GameAnalytics Resource Item Types whitelist with the {sent.Length} " +
+                      $"categories Palette sends: {string.Join(", ", sent)}");
+            return fixes;
         }
 
         /// <summary>

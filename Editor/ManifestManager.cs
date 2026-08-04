@@ -61,28 +61,34 @@ namespace Sorolla.Palette.Editor
         }
 
         /// <summary>
-        ///     Add dependencies to manifest
+        ///     Add dependencies to manifest, returning the package ids it ACTUALLY added. A package
+        ///     already listed is not an addition: reporting one as repaired on every pass would tell a
+        ///     studio their project was just changed, forever, on a manifest nobody touched. Callers that
+        ///     only need "did anything change" read the list's count.
         /// </summary>
-        public static bool AddDependencies(Dictionary<string, string> packagesToAdd)
+        public static List<string> AddDependencies(Dictionary<string, string> packagesToAdd)
         {
-            return ModifyManifest((manifest, scopedRegistries) =>
+            var added = new List<string>();
+
+            ModifyManifest((manifest, scopedRegistries) =>
             {
                 if (!manifest.ContainsKey("dependencies"))
                     manifest["dependencies"] = new Dictionary<string, object>();
 
                 var dependencies = manifest["dependencies"] as Dictionary<string, object>;
-                var modified = false;
 
                 foreach (var package in packagesToAdd)
                     if (!dependencies.ContainsKey(package.Key))
                     {
                         dependencies[package.Key] = package.Value;
-                        modified = true;
+                        added.Add(package.Key);
                         Debug.Log($"[ManifestManager] Added {package.Key} dependency");
                     }
 
-                return modified;
+                return added.Count > 0;
             });
+
+            return added;
         }
 
         /// <summary>

@@ -63,6 +63,40 @@ namespace Sorolla.Palette.Editor
                 EnsureRequiredRegistryEntries(scopedRegistries, isPrototype));
         }
 
+        /// <summary>
+        ///     Restores the scoped registry of every INSTALLED package that has one, and returns the SDKs
+        ///     whose entry it had to put back.
+        ///
+        ///     Installed, not required: an optional capability that is present (Firebase modules in
+        ///     Prototype, MAX kept across a mode switch) resolves from the wrong registry - or not at all -
+        ///     without its scope, and the readiness check reports a missing registry for ANY installed
+        ///     package. Covering only the required set left those rows with a hand-edit of manifest.json as
+        ///     their only way out, on a repair Palette can make deterministically.
+        /// </summary>
+        internal static List<SdkInfo> EnsureInstalledRegistries()
+        {
+            var restored = new List<SdkInfo>();
+
+            ManifestManager.ModifyManifest((manifest, scopedRegistries) =>
+            {
+                if (!manifest.TryGetValue("dependencies", out object deps) ||
+                    !(deps is Dictionary<string, object> dependencies))
+                    return false;
+
+                foreach (SdkInfo sdk in SdkRegistry.All.Values)
+                {
+                    if (string.IsNullOrEmpty(sdk.Scope)) continue;
+                    if (!dependencies.ContainsKey(sdk.PackageId)) continue;
+                    if (EnsureRegistryEntry(scopedRegistries, sdk))
+                        restored.Add(sdk);
+                }
+
+                return restored.Count > 0;
+            });
+
+            return restored;
+        }
+
         internal static bool EnsureCoreRegistries()
         {
             return ManifestManager.ModifyManifest((manifest, scopedRegistries) =>
@@ -116,26 +150,33 @@ namespace Sorolla.Palette.Editor
         }
 
         /// <summary>
-        ///     Install all SDKs required for a mode (that aren't already installed)
+        ///     Install all SDKs required for a mode (that aren't already installed), returning the ones it
+        ///     ACTUALLY added to the manifest.
+        ///
+        ///     The candidate set is deliberately every required SDK, because assembly detection is
+        ///     unreliable during mode switches - the manifest decides what is really missing. So the
+        ///     candidates are not the additions: a package present but not yet RESOLVED is offered here on
+        ///     every pass, and reporting those as repairs would claim a manifest edit that never happened,
+        ///     on every refresh, forever.
         /// </summary>
-        public static void InstallRequiredSdks(bool isPrototype)
+        public static List<SdkInfo> InstallRequiredSdks(bool isPrototype)
         {
             Debug.Log($"[Palette] Installing required SDKs for {(isPrototype ? "Prototype" : "Full")} mode...");
 
             var dependencies = new Dictionary<string, string>();
+            var byPackageId = new Dictionary<string, SdkInfo>();
 
             EnsureRequiredRegistries(isPrototype);
 
             foreach (SdkInfo sdk in SdkRegistry.GetRequired(isPrototype))
             {
-                // Don't skip based on assembly detection - it's unreliable during mode switches.
-                // ManifestManager.AddDependencies handles idempotency via manifest.json check.
                 Debug.Log($"[Palette] Will install: {sdk.Name} ({sdk.PackageId})");
 
                 dependencies[sdk.PackageId] = sdk.DependencyValue;
+                byPackageId[sdk.PackageId] = sdk;
             }
 
-            // Add all dependencies at once
+            var added = new List<SdkInfo>();
             if (dependencies.Count > 0)
             {
                 // Clear Firebase cache if any Firebase packages are being installed
@@ -148,13 +189,18 @@ namespace Sorolla.Palette.Editor
                     }
                 }
 
-                ManifestManager.AddDependencies(dependencies);
-                Debug.Log($"[Palette] Added {dependencies.Count} package(s) to manifest.");
+                foreach (string packageId in ManifestManager.AddDependencies(dependencies))
+                    if (byPackageId.TryGetValue(packageId, out SdkInfo sdk))
+                        added.Add(sdk);
+
+                Debug.Log($"[Palette] Added {added.Count} package(s) to manifest.");
             }
             else
             {
                 Debug.Log("[Palette] All required SDKs already installed.");
             }
+
+            return added;
         }
 
 

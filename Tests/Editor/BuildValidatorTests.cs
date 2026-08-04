@@ -84,6 +84,48 @@ plugins {
             Assert.AreEqual(input, result);
         }
 
+        /// <summary>
+        ///     The machine-local JDK path is deleted from the committed template rather than reported (B-16
+        ///     shipped it into version control once). Everything else in the file, including a commented-out
+        ///     line the studio wrote, survives untouched - a properties file is line-oriented, so this is one
+        ///     exact owned line, not arbitrary Gradle being parsed.
+        /// </summary>
+        [Test]
+        public void RemoveGradleJavaHomeLines_DeletesOnlyTheLiveLine()
+        {
+            const string input = "android.useAndroidX=true\r\n" +
+                                 "org.gradle.java.home=/Users/someone/Library/Java/JavaVirtualMachines/jdk-17\r\n" +
+                                 "# org.gradle.java.home=/opt/jdk17\r\n" +
+                                 "org.gradle.jvmargs=-Xmx4096M\r\n";
+
+            string result = BuildValidator.RemoveGradleJavaHomeLines(input);
+
+            Assert.IsFalse(BuildValidator.HasGradleJavaHomeLine(result));
+            Assert.That(result, Does.Contain("android.useAndroidX=true"));
+            Assert.That(result, Does.Contain("org.gradle.jvmargs=-Xmx4096M"));
+            Assert.That(result, Does.Contain("# org.gradle.java.home=/opt/jdk17"), "A comment is the studio's own note.");
+            Assert.That(result, Does.Contain("\r\n"), "Line endings are preserved.");
+        }
+
+        [Test]
+        public void RemoveGradleJavaHomeLines_WithoutTheLine_ReturnsUnchanged()
+        {
+            const string input = "android.useAndroidX=true\nunityStreamingAssets=.unity3d\n";
+
+            Assert.AreEqual(input, BuildValidator.RemoveGradleJavaHomeLines(input));
+        }
+
+        [TestCase("org.gradle.java.home=/opt/jdk17", true)]
+        [TestCase("  org.gradle.java.home = /opt/jdk17", true, TestName = "LeadingWhitespaceAndSpacedAssignment")]
+        [TestCase("# org.gradle.java.home=/opt/jdk17", false, TestName = "CommentedOut")]
+        [TestCase("org.gradle.jvmargs=-Xmx4096M", false)]
+        [TestCase("", false)]
+        [TestCase(null, false)]
+        public void HasGradleJavaHomeLine_MatchesTheLiveAssignmentOnly(string properties, bool expected)
+        {
+            Assert.AreEqual(expected, BuildValidator.HasGradleJavaHomeLine(properties));
+        }
+
         [TestCase("sourceCompatibility JavaVersion.VERSION_11", true)]
         [TestCase("targetCompatibility = JavaVersion.VERSION_11", true)]
         [TestCase("sourceCompatibility JavaVersion.VERSION_17", false)]

@@ -50,7 +50,8 @@ namespace Sorolla.Palette.Editor
 
         static void RunChecks()
         {
-            BuildValidator.ResolveRequiredPackages();
+            foreach (string repair in BuildValidator.ResolveRequiredPackages())
+                Debug.Log($"[Palette] Greenlight CLI: auto-fixed {repair}");
             foreach (string repair in BuildValidator.RunSafeAutoFixes())
                 Debug.Log($"[Palette] Greenlight CLI: auto-fixed {repair}");
             s_results = BuildValidator.RunAllChecks();
