@@ -24,22 +24,21 @@ namespace Sorolla.Palette.Editor
         ///     state is still visible - the vendor group caption states it - and it becomes a graded check the
         ///     moment the build target switches.
         /// </summary>
-        static List<ValidationResult> CheckGameAnalyticsSettings()
+        static void CheckGameAnalyticsSettings(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.GameAnalyticsSettings;
 
             if (!SdkDetector.IsInstalled(SdkId.GameAnalytics))
             {
                 results.Add(Skipped(category, "GameAnalytics not installed"));
-                return results;
+                return;
             }
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
                 EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)
             {
                 results.Add(Skipped(category, "Select Android or iOS to check GameAnalytics platform keys"));
-                return results;
+                return;
             }
 
             string activeName = EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS ? "iOS" : "Android";
@@ -87,8 +86,6 @@ namespace Sorolla.Palette.Editor
                     "Paste each platform's own game key + secret key from its GameAnalytics dashboard entry " +
                     "(intentional single-entry setups can ignore this warning)"));
             }
-
-            return results;
         }
 
         /// <summary>
@@ -97,22 +94,21 @@ namespace Sorolla.Palette.Editor
         ///     Palette.Economy - do NOT infer that usage by scanning game scripts (out of scope for
         ///     an editor-only check), state the conditionality in the message instead.
         /// </summary>
-        static List<ValidationResult> CheckGameAnalyticsResourceWhitelist()
+        static void CheckGameAnalyticsResourceWhitelist(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.GameAnalyticsResourceWhitelist;
 
             if (!SdkDetector.IsInstalled(SdkId.GameAnalytics))
             {
                 results.Add(Skipped(category, "GameAnalytics not installed"));
-                return results;
+                return;
             }
 
             var settings = Resources.Load("GameAnalytics/Settings");
             if (settings == null)
             {
                 results.Add(Skipped(category, "Settings.asset not found (covered by GameAnalytics Platform Keys check)"));
-                return results;
+                return;
             }
 
             var serialized = new SerializedObject(settings);
@@ -131,7 +127,7 @@ namespace Sorolla.Palette.Editor
                     "  Economy events reach Firebase either way. Fill these in only if you also want them in " +
                     "GameAnalytics, which drops resource events whose currency is not whitelisted.",
                     "Optional: add each currency name (e.g. coins) to Resource Currencies"));
-                return results;
+                return;
             }
 
             // Item types are the OTHER half of the same lookup: Palette sends the source/sink category in
@@ -148,7 +144,7 @@ namespace Sorolla.Palette.Editor
                     "  Palette sends the earn source / spend sink in that slot on every economy call, so every " +
                     "resource event is still dropped.",
                     $"Add the categories this game uses to Resource Item Types; Palette sends: {string.Join(", ", EconomyVocabulary.ItemTypes())}"));
-                return results;
+                return;
             }
 
             // Whatever the auto-fix could not decide unambiguously. It rewrites exact-meaning mis-spellings
@@ -171,8 +167,6 @@ namespace Sorolla.Palette.Editor
                     $"ResourceCurrencies: {resourceCurrenciesProperty.arraySize} configured, " +
                     $"ResourceItemTypes: {itemTypesProperty.arraySize} configured; " +
                     "every entry naming a Palette value is spelled as sent"));
-
-            return results;
         }
 
         /// <summary>

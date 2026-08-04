@@ -9,14 +9,12 @@ namespace Sorolla.Palette.Editor
         /// <summary>
         ///     Check that all required SDKs for the current mode are installed.
         /// </summary>
-        static List<ValidationResult> CheckRequiredSdks()
+        static void CheckRequiredSdks(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
-
             if (!SorollaSettings.IsConfigured)
             {
                 results.Add(Skipped(ReadinessChecks.RequiredSdks, "Mode not configured"));
-                return results;
+                return;
             }
 
             var missing = new List<string>();
@@ -31,25 +29,28 @@ namespace Sorolla.Palette.Editor
                 string modeName = SorollaSettings.IsPrototype ? "Prototype" : "Full";
                 results.Add(Error(
                     ReadinessChecks.RequiredSdks,
-                    $"Missing required SDKs for {modeName} mode:\n  {string.Join(", ", missing)}",
-                    "Click Refresh to auto-install missing SDKs"));
+                    $"Missing required SDKs for {modeName} mode:\n" +
+                    $"  {string.Join(", ", missing)}",
+                    // Refresh is the REAL repair here, not a loop: it runs ResolveRequiredPackages, which
+                    // installs exactly the required set. The vendor group headers deliberately show no
+                    // Install button for an auto-installed SDK, so naming one would send the studio to a
+                    // control that is not there. Resolution is asynchronous, hence the second clause.
+                    "Click Refresh to auto-install missing SDKs; if the row survives a completed resolve, " +
+                    "read the Package Manager error in the Console and check Packages/manifest.json"));
             }
             else
             {
                 string modeName = SorollaSettings.IsPrototype ? "Prototype" : "Full";
                 results.Add(Valid(ReadinessChecks.RequiredSdks, $"All required SDKs present for {modeName} mode"));
             }
-
-            return results;
         }
 
         /// <summary>
         ///     Check for version mismatches between SdkRegistry and manifest.
         ///     Only warns if manifest version is OLDER than expected (newer is fine).
         /// </summary>
-        static List<ValidationResult> CheckVersionMismatches(Dictionary<string, object> dependencies)
+        static void CheckVersionMismatches(List<ValidationResult> results, Dictionary<string, object> dependencies)
         {
-            var results = new List<ValidationResult>();
             bool hasIssues = false;
 
             foreach (SdkInfo sdk in SdkRegistry.All.Values)
@@ -102,8 +103,6 @@ namespace Sorolla.Palette.Editor
             // Add valid result if no issues found
             if (!hasIssues)
                 results.Add(Valid(ReadinessChecks.VersionMismatches, "All SDK versions OK"));
-
-            return results;
         }
 
         /// <summary>
@@ -143,9 +142,8 @@ namespace Sorolla.Palette.Editor
         /// <summary>
         ///     Check mode consistency - verify installed SDKs match current mode
         /// </summary>
-        static List<ValidationResult> CheckModeConsistency(Dictionary<string, object> dependencies)
+        static void CheckModeConsistency(List<ValidationResult> results, Dictionary<string, object> dependencies)
         {
-            var results = new List<ValidationResult>();
             bool hasIssues = false;
 
             if (!SorollaSettings.IsConfigured)
@@ -156,7 +154,7 @@ namespace Sorolla.Palette.Editor
                     ReadinessChecks.ModeConsistency,
                     "No SDK mode configured.",
                     "Select Prototype or Full using the mode switch above"));
-                return results;
+                return;
             }
 
             bool isPrototype = SorollaSettings.IsPrototype;
@@ -199,18 +197,15 @@ namespace Sorolla.Palette.Editor
 
             if (!hasIssues)
                 results.Add(Valid(ReadinessChecks.ModeConsistency, $"No mode-mismatched SDKs installed ({modeName} mode)"));
-
-            return results;
         }
 
         /// <summary>
         ///     Check that required scoped registries are configured
         /// </summary>
-        static List<ValidationResult> CheckScopedRegistries(
+        static void CheckScopedRegistries(List<ValidationResult> results,
             Dictionary<string, object> dependencies,
             List<object> registries)
         {
-            var results = new List<ValidationResult>();
             bool hasIssues = false;
 
             // Build list of all scopes in registries
@@ -239,23 +234,22 @@ namespace Sorolla.Palette.Editor
                 {
                     hasIssues = true;
                     // Fix hint repointed at reality (F6, 2026-07-21 audit): there is no registry UI in this
-                    // window at all (scopedRegistries lives only in Packages/manifest.json). For a REQUIRED
-                    // SDK, ResolveRequiredPackages already re-adds it on every Refresh - so
-                    // the actual fix is the Refresh button already in this window. For an optional SDK
-                    // outside that auto-repair path, removing and reinstalling it restores the registry
-                    // (SdkInstaller.Install writes it).
+                    // window at all - scopedRegistries lives only in Packages/manifest.json, so the manual
+                    // action names that file. Refresh re-adds the registry for REQUIRED SDKs only, which is
+                    // why it is the retry rather than the primary remedy.
                     results.Add(Error(
                         ReadinessChecks.ScopedRegistries,
-                        $"Missing scoped registry for {sdk.Name}\n  Required scope: {sdk.Scope}",
-                        "Click Refresh (required SDKs auto-repair their registry); for an optional SDK, " +
-                        "remove and reinstall it from the SDK Overview row below"));
+                        $"Missing scoped registry for {sdk.Name}\n" +
+                        $"  Required scope: {sdk.Scope}\n" +
+                        "  The package resolves from the wrong registry (or not at all) until this scope is " +
+                        "listed.",
+                        $"Add \"{sdk.Scope}\" to the scopedRegistries entry in Packages/manifest.json, " +
+                        "then click Refresh"));
                 }
             }
 
             if (!hasIssues)
                 results.Add(Valid(ReadinessChecks.ScopedRegistries, "All registries configured"));
-
-            return results;
         }
     }
 }

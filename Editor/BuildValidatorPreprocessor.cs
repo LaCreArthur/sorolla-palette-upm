@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
@@ -13,7 +14,7 @@ namespace Sorolla.Palette.Editor
     {
         public int callbackOrder => -100;
 
-        public void OnPreprocessBuild(BuildReport report)
+        public void OnPreprocessBuild(BuildReport buildReport)
         {
             Debug.Log("[Palette BuildValidator] Running pre-build validation...");
 
@@ -23,16 +24,23 @@ namespace Sorolla.Palette.Editor
             foreach (string fix in fixes)
                 Debug.Log($"[Palette BuildValidator] Auto-fix: {fix}");
 
-            var results = BuildValidator.RunAllChecks();
-            var errors = BuildValidator.BlockingErrors(results);
+            // Blocking reads the EVALUATED report, not the raw producer results: what the window and the
+            // copied report grade as a failure is exactly what stops a build. A producer result the report
+            // discards (a gate that does not apply to this project) can no longer fail a build invisibly,
+            // and an unproven result stays Incomplete and never blocks.
+            ReadinessReport readiness = Greenlight.GreenlightEvaluator.Evaluate(BuildValidator.RunAllChecks());
+            IReadOnlyList<ReadinessRow> blocking = readiness.BlockingRows;
 
-            if (errors.Count > 0)
+            if (blocking.Count > 0)
             {
-                foreach (BuildValidator.ValidationResult error in errors)
-                    Debug.LogError($"[Palette BuildValidator] ERROR: {error.Message}");
+                foreach (ReadinessRow row in blocking)
+                foreach (ReadinessFinding finding in row.Findings)
+                    if (finding.Outcome == ReadinessOutcome.Fail)
+                        Debug.LogError($"[Palette BuildValidator] ERROR: {row.Check.Id}: {finding.Evidence}\n" +
+                                       $"  Fix: {finding.Fix}");
 
                 throw new BuildFailedException(
-                    $"Build validation failed with {errors.Count} error(s). " +
+                    $"Build validation failed with {blocking.Count} failing check(s). " +
                     "Open Tools > Sorolla Palette SDK for details."
                 );
             }
@@ -41,13 +49,20 @@ namespace Sorolla.Palette.Editor
             // submission, and a development build is by definition not that - warning on every dev/QA build
             // is the noise that trains people to ignore the log. The build tells us which kind it is, so
             // nothing has to be configured or remembered (2026-07-22, replacing the deleted profile knob).
-            bool releaseBuild = (report.summary.options & BuildOptions.Development) == 0;
-            var warnings = results
-                .Where(r => r.Status == BuildValidator.ValidationStatus.Warning)
+            bool releaseBuild = (buildReport.summary.options & BuildOptions.Development) == 0;
+
+            // Per FINDING, not per row outcome: a row whose worst finding is Incomplete can still carry a
+            // real warning underneath it, and filtering on the row's outcome silently dropped it from the
+            // build log. Every evaluated row is searched.
+            var warnings = readiness.Rows
+                .Where(r => r.Disposition == ReadinessDisposition.Evaluated)
                 .Where(r => releaseBuild || !r.Check.ReleaseOnly)
+                .SelectMany(r => r.Findings
+                    .Where(f => f.Outcome == ReadinessOutcome.Warn)
+                    .Select(f => $"{r.Check.Id}: {f.Evidence}"))
                 .ToList();
-            foreach (BuildValidator.ValidationResult warning in warnings)
-                Debug.LogWarning($"[Palette BuildValidator] WARNING: {warning.Message}");
+            foreach (string warning in warnings)
+                Debug.LogWarning($"[Palette BuildValidator] WARNING: {warning}");
 
             if (warnings.Count > 0)
                 Debug.Log($"[Palette BuildValidator] Pre-build validation passed with {warnings.Count} warning(s)");

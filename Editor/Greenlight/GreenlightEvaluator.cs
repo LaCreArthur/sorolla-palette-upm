@@ -10,13 +10,12 @@ namespace Sorolla.Palette.Editor.Greenlight
 {
     static class GreenlightEvaluator
     {
-        internal static ReadinessReport Evaluate(List<BuildValidator.ValidationResult> results)
-        {
-            ReadinessContext context = CaptureContext();
-            ReadinessReport report = ReadinessEvaluator.Evaluate(context, results);
-            report.Fingerprint = GreenlightReportExport.Fingerprint.Capture();
-            return report;
-        }
+        /// <summary>
+        ///     The fingerprint is captured ONCE, inside the evaluator. Re-capturing it here shelled out to
+        ///     git a second time for an identical answer, on a path that runs before every build.
+        /// </summary>
+        internal static ReadinessReport Evaluate(List<BuildValidator.ValidationResult> results) =>
+            ReadinessEvaluator.Evaluate(CaptureContext(), results);
 
         internal static ReadinessContext CaptureContext()
         {

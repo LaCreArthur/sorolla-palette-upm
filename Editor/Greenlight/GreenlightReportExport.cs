@@ -10,7 +10,8 @@ namespace Sorolla.Palette.Editor.Greenlight
     ///     The AUDITABLE canonical report export. The Editor greenlight's flattened display rows
     ///     hide inert rows; this exporter renders every readiness row, including NotApplicable and
     ///     OptionalSkipped, with
-    ///     its stable id, definition version, requirement + reason, disposition, outcome, evidence, and fix -
+    ///     its stable id, requirement + reason, disposition, outcome, and EVERY finding that row retained
+    ///     with the action paired to it -
     ///     plus a build/context fingerprint so a pasted result can be tied to the
     ///     exact game, build, mode, platform, phase, and SDK COMMIT that produced it. One readable text
     ///     rendering, clipboard as the transport: one report beats two that can disagree.
@@ -80,28 +81,54 @@ namespace Sorolla.Palette.Editor.Greenlight
 
             foreach (ReadinessRow row in report?.Rows ?? Array.Empty<ReadinessRow>())
             {
-                // Never print an affirmative [Pass] for a result that was not evaluated evidence. Two cases:
-                // a deliberate skip/absence, and a gate that does not
-                // apply to the platform this report judged - the latter carries the default Pass
-                // outcome because it never voted, which is exactly why it must not read as one.
+                // Never print an affirmative [Pass] for a result that was not evaluated evidence. Three
+                // cases: a gate that does not apply to the platform/mode this report judged, an optional
+                // gate nothing reported on, and a deliberate producer skip. The first two carry the model's
+                // default Pass outcome precisely because they never voted, which is exactly why they must
+                // not read as one.
                 string outcomeLabel =
                     row.Disposition == ReadinessDisposition.NotApplicable ? "NotApplicable"
+                    : row.Disposition == ReadinessDisposition.OptionalSkipped ? "OptionalSkipped"
                     : row.Informational ? "Skipped"
                     : OutcomeLabel(row.Outcome);
                 sb.AppendLine($"[{outcomeLabel}] {row.Check.Id} " +
                               $"req={row.Requirement} disp={row.Disposition}");
                 if (!string.IsNullOrEmpty(row.RequirementReason))
                     sb.AppendLine($"    reason: {row.RequirementReason}");
-                if (!string.IsNullOrEmpty(row.Evidence))
-                    sb.AppendLine($"    evidence: {row.Evidence}");
-                if (!string.IsNullOrEmpty(row.Fix))
-                    sb.AppendLine($"    fix: {row.Fix}");
+
+                // EVERY finding, each with its own severity and its own action. A check that observed five
+                // problems prints five, because the window renders five: same model, two renderings.
+                foreach (ReadinessFinding finding in row.Findings)
+                {
+                    AppendBlock(sb, $"[{FindingLabel(finding)}] evidence", finding.Evidence);
+                    // A passing finding's action is a caveat naming what the pass did NOT establish, so it
+                    // is not labelled as a fix a studio still owes. When the evidence IS the instruction,
+                    // both slots hold the same text - print it once.
+                    if (finding.Fix != finding.Evidence)
+                        AppendBlock(sb, finding.Outcome == ReadinessOutcome.Pass ? "note" : "fix", finding.Fix);
+                }
             }
 
             foreach (string error in report?.IntegrityErrors ?? Array.Empty<string>())
                 sb.AppendLine($"[INTEGRITY] {error}");
 
             return sb.ToString();
+        }
+
+        /// <summary>A deliberate skip prints as "Skipped", never as an affirmative Pass, at the finding level
+        /// too - the same rule the row line follows.</summary>
+        static string FindingLabel(ReadinessFinding finding) =>
+            finding.Informational ? "Skipped" : OutcomeLabel(finding.Outcome);
+
+        /// <summary>One labelled block, with continuation lines indented under it - a multi-line diagnosis
+        /// stays one readable unit instead of being truncated to its first line.</summary>
+        static void AppendBlock(StringBuilder sb, string label, string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            string[] lines = text.Split('\n');
+            sb.AppendLine($"    {label}: {lines[0].TrimEnd()}");
+            for (var i = 1; i < lines.Length; i++)
+                sb.AppendLine($"      {lines[i].Trim()}");
         }
 
         static string OutcomeLabel(ReadinessOutcome outcome) => outcome switch

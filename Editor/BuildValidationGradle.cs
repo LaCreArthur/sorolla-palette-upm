@@ -12,14 +12,12 @@ namespace Sorolla.Palette.Editor
         ///     Firebase 23.x, AppLovin MAX 13.x, and Kotlin 2.x all require Java 17 bytecode.
         ///     Unity 2022 bundles JDK 11 — Gradle must be pointed at JDK 17+ or dexing fails.
         /// </summary>
-        static List<ValidationResult> CheckGradleConfig()
+        static void CheckGradleConfig(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
-
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             {
                 results.Add(Skipped(ReadinessChecks.GradleConfig, "Gradle checks skipped (not Android)"));
-                return results;
+                return;
             }
 
             bool hasIssues = false;
@@ -35,10 +33,12 @@ namespace Sorolla.Palette.Editor
                     string fileName = Path.GetFileName(templatePath);
                     results.Add(Error(
                         ReadinessChecks.GradleConfig,
-                        $"{fileName} has Java 11 compileOptions!\n" +
+                        $"{fileName} still has Java 11 compileOptions after the automatic upgrade.\n" +
                         $"  Firebase 23.x, AppLovin MAX 13.x, and Kotlin 2.x require Java {RequiredJavaVersion}.\n" +
-                        $"  Change sourceCompatibility and targetCompatibility to VERSION_{RequiredJavaVersion}.",
-                        "Click Refresh above and re-check."));
+                        "  The auto-fix rewrites VERSION_11 in this file; it is still there, so the write did " +
+                        "not take (read-only file, or the value is assembled dynamically).",
+                        $"Open Assets/Plugins/Android/{fileName} and set sourceCompatibility and " +
+                        $"targetCompatibility to JavaVersion.VERSION_{RequiredJavaVersion}"));
                 }
             }
 
@@ -58,8 +58,6 @@ namespace Sorolla.Palette.Editor
 
             if (!hasIssues)
                 results.Add(Valid(ReadinessChecks.GradleConfig, "Gradle config OK"));
-
-            return results;
         }
 
         /// <summary>
@@ -67,21 +65,20 @@ namespace Sorolla.Palette.Editor
         ///     machine-local path that breaks every other teammate's Gradle build ("Java home supplied
         ///     is invalid"). Android target only.
         /// </summary>
-        static List<ValidationResult> CheckGradleJavaHome()
+        static void CheckGradleJavaHome(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.GradleJavaHome;
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             {
                 results.Add(Skipped(category, "not an Android build target"));
-                return results;
+                return;
             }
 
             if (!File.Exists(GradlePropertiesPath))
             {
                 results.Add(Skipped(category, "gradleTemplate.properties not found (covered by Gradle Configuration check)"));
-                return results;
+                return;
             }
 
             string props = File.ReadAllText(GradlePropertiesPath);
@@ -97,8 +94,6 @@ namespace Sorolla.Palette.Editor
             {
                 results.Add(Valid(category, "No hardcoded org.gradle.java.home"));
             }
-
-            return results;
         }
 
         internal static bool HasJava11CompileOptions(string gradle) =>
@@ -153,14 +148,12 @@ namespace Sorolla.Palette.Editor
         ///     Unity 2022 (AGP 7.4.2) needs R8 8.1.56+ pin for Kotlin 2.0 metadata.
         ///     Unity 6 (AGP 8.x) bundles modern R8 - the pin must be removed.
         /// </summary>
-        static List<ValidationResult> CheckR8AgpConfig()
+        static void CheckR8AgpConfig(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
-
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             {
                 results.Add(Skipped(ReadinessChecks.GradleConfig, "R8/AGP checks skipped (not Android)"));
-                return results;
+                return;
             }
 
             bool hasIssues = false;
@@ -175,11 +168,13 @@ namespace Sorolla.Palette.Editor
                     hasIssues = true;
                     results.Add(Error(
                         ReadinessChecks.GradleConfig,
-                        "baseProjectTemplate.gradle has an R8 version pin!\n" +
+                        "baseProjectTemplate.gradle still has an R8 version pin after the automatic removal.\n" +
                         "  AGP 8.x bundles modern R8 that handles Kotlin 2.0 natively.\n" +
                         "  The pin causes NoSuchMethodError during dexing.\n" +
-                        "  Remove the buildscript { ... } block from baseProjectTemplate.gradle.",
-                        "Click Refresh above and re-check."));
+                        "  The auto-fix removes the buildscript block only when its braces balance, so it " +
+                        "left this file untouched.",
+                        "Open Assets/Plugins/Android/baseProjectTemplate.gradle and delete the " +
+                        "buildscript { ... } block containing com.android.tools:r8"));
 #endif
                     // Unity 2022: R8 pin is expected and correct - no warning needed
                 }
@@ -206,8 +201,6 @@ namespace Sorolla.Palette.Editor
 
             if (!hasIssues)
                 results.Add(Valid(ReadinessChecks.GradleConfig, "R8/AGP config OK"));
-
-            return results;
         }
 
         internal static bool HasR8Pin(string gradle) =>

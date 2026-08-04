@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -72,71 +71,91 @@ namespace Sorolla.Palette.Editor
         {
             var results = new List<ValidationResult>();
 
-            try
+            var manifest = ReadManifest();
+            if (manifest == null)
             {
-                var manifest = ReadManifest();
-                if (manifest == null)
-                {
-                    results.Add(Error(ReadinessChecks.VersionMismatches, "Failed to read Packages/manifest.json",
-                        "Restore valid JSON in Packages/manifest.json, then click Refresh"));
-                    return results;
-                }
-
-                var dependencies = manifest.TryGetValue("dependencies", out object deps)
-                    ? deps as Dictionary<string, object>
-                    : new Dictionary<string, object>();
-
-                var registries = manifest.TryGetValue("scopedRegistries", out object regs)
-                    ? regs as List<object>
-                    : new List<object>();
-
-                // Run all checks
-                results.AddRange(CheckRequiredSdks());
-                results.AddRange(CheckVersionMismatches(dependencies));
-                results.AddRange(CheckModeConsistency(dependencies));
-                results.AddRange(CheckScopedRegistries(dependencies, registries));
-                results.AddRange(CheckFirebaseCoherence(dependencies));
-                results.AddRange(CheckFirebaseConfigFiles(dependencies));
-                results.AddRange(CheckConfigSync(dependencies));
-                AndroidManifestSanitizer.ManifestDiagnostics manifestDiag = _lastManifestDiagnostics;
-                _lastManifestDiagnostics = null;
-                results.AddRange(CheckAndroidManifest(manifestDiag));
-                results.AddRange(CheckMaxSettings());
-                results.AddRange(CheckAdjustSettings(dependencies));
-                results.AddRange(CheckEdm4uSettings());
-                results.AddRange(CheckGradleConfig());
-                results.AddRange(CheckR8AgpConfig());
-                results.AddRange(CheckGameAnalyticsSettings());
-                results.AddRange(CheckFacebookPlatformConfig());
-                results.AddRange(CheckGameAnalyticsCredential());
-
-                // Phase 3 (Build Health parity with the pre-build gates) - profile-scoped and
-                // always-Warning-or-info checks, see BuildValidationReleaseReadiness.cs.
-                results.AddRange(CheckVerboseLogging());
-                results.AddRange(CheckDevelopmentBuildFlag());
-                results.AddRange(CheckAdjustSandboxMode());
-                results.AddRange(CheckAndroidKeystore());
-                results.AddRange(CheckGradleJavaHome());
-                results.AddRange(CheckGameAnalyticsResourceWhitelist());
-                results.AddRange(CheckAddressablesContent(dependencies));
-                results.AddRange(CheckSdkPin(dependencies));
+                results.Add(Error(ReadinessChecks.VersionMismatches,
+                    "Packages/manifest.json could not be read as JSON, so no package fact could be checked.",
+                    "Open Packages/manifest.json, restore valid JSON (git checkout the file if it is unedited), then Refresh"));
+                return results;
             }
-            catch (Exception e)
-            {
-                results.Add(Error(ReadinessChecks.VersionMismatches, $"Validation failed: {e.Message}",
-                    "Copy Report and send this SDK validation error to Sorolla"));
-            }
+
+            var dependencies = manifest.TryGetValue("dependencies", out object deps)
+                ? deps as Dictionary<string, object>
+                : new Dictionary<string, object>();
+
+            var registries = manifest.TryGetValue("scopedRegistries", out object regs)
+                ? regs as List<object>
+                : new List<object>();
+
+            AndroidManifestSanitizer.ManifestDiagnostics manifestDiag = _lastManifestDiagnostics;
+            _lastManifestDiagnostics = null;
+
+            Run(results, ReadinessChecks.RequiredSdks, CheckRequiredSdks);
+            Run(results, ReadinessChecks.VersionMismatches, r => CheckVersionMismatches(r, dependencies));
+            Run(results, ReadinessChecks.ModeConsistency, r => CheckModeConsistency(r, dependencies));
+            Run(results, ReadinessChecks.ScopedRegistries, r => CheckScopedRegistries(r, dependencies, registries));
+            Run(results, ReadinessChecks.FirebaseCoherence, r => CheckFirebaseCoherence(r, dependencies));
+            // Off-mobile both Firebase config gates resolve NotApplicable, so there is no row to attribute a
+            // failure to - and nothing to check either.
+            ReadinessCheck firebaseConfigGate = FirebaseConfigGate();
+            if (firebaseConfigGate != null)
+                Run(results, firebaseConfigGate, r => CheckFirebaseConfigFiles(r, dependencies));
+            Run(results, ReadinessChecks.ConfigSync, r => CheckConfigSync(r, dependencies));
+            Run(results, ReadinessChecks.AndroidManifest, r => CheckAndroidManifest(r, manifestDiag));
+            Run(results, ReadinessChecks.MaxSettings, CheckMaxSettings);
+            Run(results, ReadinessChecks.AdjustSettings, r => CheckAdjustSettings(r, dependencies));
+            Run(results, ReadinessChecks.Edm4uSettings, CheckEdm4uSettings);
+            Run(results, ReadinessChecks.GradleConfig, CheckGradleConfig, "Java + templates");
+            Run(results, ReadinessChecks.GradleConfig, CheckR8AgpConfig, "R8 + AGP");
+            Run(results, ReadinessChecks.GameAnalyticsSettings, CheckGameAnalyticsSettings);
+            Run(results, ReadinessChecks.FacebookPlatformConfig, CheckFacebookPlatformConfig);
+            Run(results, ReadinessChecks.GameAnalyticsCredentialProbe, CheckGameAnalyticsCredential);
+
+            // Phase 3 (Build Health parity with the pre-build gates) - profile-scoped and
+            // always-Warning-or-info checks, see BuildValidationReleaseReadiness.cs.
+            Run(results, ReadinessChecks.VerboseLogging, CheckVerboseLogging);
+            Run(results, ReadinessChecks.DevelopmentBuild, CheckDevelopmentBuildFlag);
+            Run(results, ReadinessChecks.AdjustSandboxMode, CheckAdjustSandboxMode);
+            Run(results, ReadinessChecks.AndroidKeystore, CheckAndroidKeystore);
+            Run(results, ReadinessChecks.GradleJavaHome, CheckGradleJavaHome);
+            Run(results, ReadinessChecks.GameAnalyticsResourceWhitelist, CheckGameAnalyticsResourceWhitelist);
+            Run(results, ReadinessChecks.AddressablesContent, r => CheckAddressablesContent(r, dependencies));
+            Run(results, ReadinessChecks.SdkPin, r => CheckSdkPin(r, dependencies));
 
             return results;
         }
 
         /// <summary>
-        ///     The one pre-build blocking rule, read by <see cref="BuildValidatorPreprocessor" />: an Error
-        ///     blocks the build, and nothing else does. Unverifiable results (a pending or unreachable
-        ///     vendor probe) never block - the check could not prove the integration broken.
+        ///     Runs one check in isolation. A check that throws names ITSELF, reports Unverifiable (the
+        ///     evaluation failed - that is not evidence the integration is broken, so it must not fail a
+        ///     build), and every check after it still runs. One shared try/catch used to abandon the whole
+        ///     pass at the first throw and blame the SDK-versions row for it.
+        ///
+        ///     Checks append into the shared list as they go rather than returning one at the end, so a
+        ///     throw halfway through keeps everything that check already PROVED - a Gradle Java-11 Error
+        ///     found before the throw still blocks the build instead of vanishing with the exception.
+        ///
+        ///     <paramref name="part" /> distinguishes several checks that report against the same row, so
+        ///     two thrown findings on that row are not indistinguishable.
         /// </summary>
-        internal static List<ValidationResult> BlockingErrors(IEnumerable<ValidationResult> results) =>
-            results.Where(r => r.Status == ValidationStatus.Error).ToList();
+        static void Run(List<ValidationResult> results, ReadinessCheck attribution,
+            Action<List<ValidationResult>> check, string part = null)
+        {
+            string name = part == null ? attribution.Label : $"{attribution.Label} ({part})";
+            try
+            {
+                check(results);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"{Tag} {attribution.Id}{(part == null ? "" : $" [{part}]")} threw: {e}");
+                results.Add(Unverifiable(attribution,
+                    $"The {name} check failed to run: {e.Message}\n" +
+                    "  Evaluation failed here; nothing about the integration itself was proven either way.",
+                    ReadinessEvaluator.NoResultAction));
+            }
+        }
 
         /// <summary>
         ///     Run all auto-fixes before validation. Returns list of fixes applied.

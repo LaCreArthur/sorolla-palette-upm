@@ -12,28 +12,27 @@ namespace Sorolla.Palette.Editor
         ///     kicks off a probe if needed and reports whatever <see cref="FacebookPlatformValidator"/>
         ///     currently has cached, never waiting on the network here.
         /// </summary>
-        static List<ValidationResult> CheckFacebookPlatformConfig()
+        static void CheckFacebookPlatformConfig(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.FacebookPlatformConfig;
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
                 EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)
             {
                 results.Add(Skipped(category, "Select Android or iOS to check Facebook platform configuration"));
-                return results;
+                return;
             }
 
             if (!SdkDetector.IsInstalled(SdkId.Facebook))
             {
                 results.Add(Skipped(category, "Facebook not installed"));
-                return results;
+                return;
             }
 
             if (!SdkConfigDetector.TryGetFacebookCredentials(out string appId, out string clientToken))
             {
                 results.Add(GradeFacebookPlatform(false, default, null));
-                return results;
+                return;
             }
 
             FacebookPlatformValidator.EnsureChecked(appId, clientToken);
@@ -46,8 +45,6 @@ namespace Sorolla.Palette.Editor
             bool probeIsCurrent = probe.AppId == appId
                 && probe.PlatformName == FacebookPlatformValidator.ActivePlatformName();
             results.Add(GradeFacebookPlatform(true, probe.State, probe.Detail, probeIsCurrent));
-
-            return results;
         }
 
         /// <summary>
@@ -97,16 +94,23 @@ namespace Sorolla.Palette.Editor
                     return Error(category, detail, "FB console -> Settings -> Basic -> Add Platform");
 
                 case FacebookPlatformValidator.ProbeState.CredentialInvalid:
-                    // Fix hint omits the "open FacebookSettings.asset" step (product-audit fix cycle
-                    // residual, 2026-07-21): the row's "Open FB Settings" button already opens it.
+                    // Names the control that exists: the Facebook GROUP HEADER's Edit button. The per-row
+                    // "Open FB Settings" button this hint used to lean on was deleted with the duplicate
+                    // per-row affordances.
                     return Error(category, detail,
-                        "Compare the app id + client token against the Facebook developer console");
+                        "Compare the app id + client token in FacebookSettings.asset (Edit on the Facebook " +
+                        "group header) against the Facebook developer console");
 
                 case FacebookPlatformValidator.ProbeState.Verified:
                     return Valid(category, detail);
 
                 default:
-                    return Unverifiable(category, "Checking Facebook app platform registration...");
+                    // Not "still checking": the probe settled on a state this grading does not know, which
+                    // is an SDK defect, not a project one. Saying so beats a spinner that never resolves.
+                    return Unverifiable(category,
+                        $"The Facebook platform probe returned an unrecognised state ({state}).\n" +
+                        "  Nothing about the Facebook app registration was established.",
+                        ReadinessEvaluator.NoResultAction);
             }
         }
     }

@@ -24,10 +24,8 @@ namespace Sorolla.Palette.Editor
                 ? Error(ReadinessChecks.ConfigSync, message, fix)
                 : Warning(ReadinessChecks.ConfigSync, message, fix);
 
-        static List<ValidationResult> CheckConfigSync(Dictionary<string, object> dependencies)
+        static void CheckConfigSync(List<ValidationResult> results, Dictionary<string, object> dependencies)
         {
-            var results = new List<ValidationResult>();
-
             var config = Resources.Load<SorollaConfig>("SorollaConfig");
             if (config == null)
             {
@@ -49,7 +47,7 @@ namespace Sorolla.Palette.Editor
                         "Click \"Create Configuration Asset\" in this window"));
                 }
 
-                return results;
+                return;
             }
 
             string configPath = AssetDatabase.GetAssetPath(config);
@@ -61,12 +59,10 @@ namespace Sorolla.Palette.Editor
                 results.Add(ConfigSyncIssue(
                     $"SorollaConfig resolves via Resources.Load but lives at '{configPath}', not the canonical '{ExpectedConfigPath}'.",
                     $"Move the asset to {ExpectedConfigPath}"));
-                return results;
+                return;
             }
 
             results.Add(Valid(ReadinessChecks.ConfigSync, "Config synced"));
-
-            return results;
         }
 
         /// <summary>

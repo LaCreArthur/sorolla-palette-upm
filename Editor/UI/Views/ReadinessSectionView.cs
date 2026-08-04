@@ -253,15 +253,19 @@ namespace Sorolla.Palette.Editor.UI
                 actionEnabled = own.ActionEnabled;
                 if (own.Optional) title = $"{title} (optional)";
 
-                (badgeText, badgeSeverity) = own.State switch
+                // Visible rows escalate EVERY phase, never downgrade. Escalation used to apply to the Pass
+                // phase alone, so a group whose vendor reads NOT INSTALLED or DISABLED badged neutral while
+                // holding a blocking row - and, because the fold default follows the badge, opened
+                // collapsed with the failure hidden inside (Prototype with a partial Firebase suite).
+                (badgeText, badgeSeverity) = Escalate(own.State switch
                 {
                     VendorStatus.Phase.Installing => ("INSTALLING", StatusBadge.Severity.Wait),
                     VendorStatus.Phase.NotInstalled => ("NOT INSTALLED", StatusBadge.Severity.Gated),
                     VendorStatus.Phase.Disabled => ("DISABLED", StatusBadge.Severity.Gated),
                     VendorStatus.Phase.Fail => BadgeFor(ReadinessOutcome.Fail),
                     VendorStatus.Phase.Warn => BadgeFor(ReadinessOutcome.Warn),
-                    _ => BadgeFor(rowsWorst), // Pass: visible rows may escalate, never downgrade
-                };
+                    _ => BadgeFor(ReadinessOutcome.Pass),
+                }, rowsWorst);
             }
             else
             {
@@ -342,16 +346,13 @@ namespace Sorolla.Palette.Editor.UI
         {
             var container = new VisualElement();
 
-            // Pass rows suppress Fix text and remedy buttons entirely: a green row with mandatory "Fix:"
-            // homework and an action button pointing at
-            // nothing-to-act-on is the glyph-vs-text contradiction family. (The GA credential probe's
-            // platform-registration caveat rides in that row's own message rather than as fix text,
-            // precisely so a passing row can still state what it did not prove.) Info rows - a deliberate
-            // skip or absence - get the same treatment: a skip is not a caveat to resolve.
+            // Every finding this check produced is rendered, each with its own action - the same collection
+            // Copy Report prints. A passing finding's action renders as a caveat, not as homework, which is
+            // how the GameAnalytics probe can pass and still say it never proved dashboard platform
+            // registration. Remedy BUTTONS still only appear on non-passing rows: an action control pointing
+            // at nothing to act on is the contradiction that suppression existed to avoid.
             bool isPass = row.Outcome == ReadinessOutcome.Pass;
-            container.Add(CheckRow.Create(TrimGroupPrefix(row.Check.Label, group), row.Outcome,
-                row.Informational, row.Evidence,
-                isPass ? null : row.Fix));
+            container.Add(CheckRow.Create(TrimGroupPrefix(row.Check.Label, group), row));
 
             // No per-row "Open GA/FB Settings" buttons: every row that had one sits under a group header
             // whose Edit button performs the identical action (the duplicate affordance was noise).
@@ -387,6 +388,25 @@ namespace Sorolla.Palette.Editor.UI
             row.Outcome != ReadinessOutcome.Pass ||
             VisibleWhenPassing.Contains(row.Check.Id);
 
+        /// <summary>Raises a vendor's own badge to its visible rows' badge when the rows are worse, and
+        /// never the other way round: a header may overstate trouble, never understate it.</summary>
+        static (string text, StatusBadge.Severity severity) Escalate(
+            (string text, StatusBadge.Severity severity) vendor, ReadinessOutcome rowsWorst)
+        {
+            (string text, StatusBadge.Severity severity) rows = BadgeFor(rowsWorst);
+            return Rank(rows.severity) > Rank(vendor.severity) ? rows : vendor;
+        }
+
+        /// <summary>How loudly a badge asks for attention. Gated and Pass are both "nothing to do here";
+        /// everything above them is a claim on the studio's time, and Fail outranks all of it.</summary>
+        static int Rank(StatusBadge.Severity severity) => severity switch
+        {
+            StatusBadge.Severity.Fail => 3,
+            StatusBadge.Severity.Wait => 2,
+            StatusBadge.Severity.Advisory => 1,
+            _ => 0,
+        };
+
         /// <summary>Header pill for a group's effective status, in the report's own vocabulary.</summary>
         static (string text, StatusBadge.Severity severity) BadgeFor(ReadinessOutcome status) => status switch
         {
@@ -396,21 +416,12 @@ namespace Sorolla.Palette.Editor.UI
             _ => ("GREEN", StatusBadge.Severity.Pass),
         };
 
-        /// <summary>Worst status among a set of rows - the ONE place this is computed, fed by whatever the
-        /// caller already filtered to be visible. Computing it from the pre-filtered list (not a separate
-        /// side-channel query) is what keeps a header from ever contradicting what is rendered below it.</summary>
-        static ReadinessOutcome WorstOfRows(IEnumerable<ReadinessRow> rows)
-        {
-            ReadinessOutcome worst = ReadinessOutcome.Pass;
-            foreach (ReadinessRow r in rows)
-            {
-                if (r.Outcome == ReadinessOutcome.Fail) return ReadinessOutcome.Fail;
-                if (r.Outcome == ReadinessOutcome.Incomplete) worst = ReadinessOutcome.Incomplete;
-                else if (r.Outcome == ReadinessOutcome.Warn && worst == ReadinessOutcome.Pass)
-                    worst = ReadinessOutcome.Warn;
-            }
-            return worst;
-        }
+        /// <summary>Worst status among a set of rows, on the readiness model's own severity order, fed by
+        /// whatever the caller already filtered to be visible. Computing it from the pre-filtered list (not a
+        /// separate side-channel query) is what keeps a header from ever contradicting what is rendered
+        /// below it.</summary>
+        static ReadinessOutcome WorstOfRows(IEnumerable<ReadinessRow> rows) =>
+            ReadinessRow.WorstOf(rows.Select(r => r.Outcome));
 
         /// <summary>Builds the group list from evaluator rows plus config state - the single data model the
         /// render reads. Grouping key is the gate's own catalog category, never label string-matching.</summary>

@@ -481,7 +481,3 @@ Purchase:  TrackPurchase → Adjust (verify) + Firebase
 
 **Warn only** (may be intentional):
 - Kotlin stdlib version forcing
-
-### Console Breadcrumb
-
-`BuildHealthConsoleNotifier` (`[InitializeOnLoad]`) logs a single warning on domain reload if build health errors exist. No popup, no window - just a breadcrumb.

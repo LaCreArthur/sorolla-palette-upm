@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
+using Sorolla.Palette.Health;
 
 namespace Sorolla.Palette.Editor.Tests
 {
@@ -157,27 +159,106 @@ namespace Sorolla.Palette.Editor.Tests
         }
 
         /// <summary>
-        ///     Asserts the extracted pre-build predicate itself. That BuildValidatorPreprocessor consumes
-        ///     exactly this predicate is hand-verified (its one-line call site), not asserted here:
-        ///     OnPreprocessBuild needs a BuildReport and live project state. Accepted limitation.
+        ///     Firebase config applicability has ONE owner - the catalog gate - and these are its three
+        ///     answers. The config producer used to carry a twin of this condition that could drift from it.
         /// </summary>
         [Test]
-        public void CachedVendorErrors_Block_WhileUnreachableProbesDoNot()
+        public void Firebase_ConfigApplicability_HasOneOwner()
+        {
+            Assert.AreEqual(ReadinessRequirement.Required,
+                Applicability(EvalMode.Full, SdkModule.Firebase), "Full mode, complete suite");
+            Assert.AreEqual(ReadinessRequirement.NotApplicable,
+                Applicability(EvalMode.Full, SdkModule.FirebaseApp), "Full mode, incomplete suite");
+            Assert.AreEqual(ReadinessRequirement.Optional,
+                Applicability(EvalMode.Prototype, SdkModule.FirebaseApp), "Prototype with Firebase");
+            Assert.AreEqual(ReadinessRequirement.NotApplicable,
+                Applicability(EvalMode.Prototype, SdkModule.None), "Prototype without Firebase");
+        }
+
+        static ReadinessRequirement Applicability(EvalMode mode, SdkModule modules) =>
+            ReadinessChecks.FirebaseSuite(Context(modules, mode)).Value;
+
+        static ReadinessContext Context(SdkModule modules, EvalMode mode = EvalMode.Full) => new ReadinessContext
+        {
+            Mode = mode,
+            Platform = ReadinessPlatform.Android,
+            InstalledModules = modules,
+            ModulesResolved = true,
+        };
+
+        const SdkModule FullSuite = SdkModule.GameAnalytics | SdkModule.Facebook | SdkModule.Firebase |
+                                    SdkModule.AppLovinMax | SdkModule.Adjust;
+
+        static BuildValidator.ValidationResult Observed(
+            ReadinessCheck check, BuildValidator.ValidationStatus status, string message) =>
+            new BuildValidator.ValidationResult(status, message, "fix", check);
+
+        /// <summary>
+        ///     The blocking rule, asserted on the model the pre-build hook actually reads. Cached vendor
+        ///     Errors block and an unreachable probe does not. That BuildValidatorPreprocessor consumes
+        ///     exactly this collection is hand-verified (its one-line call site): OnPreprocessBuild needs a
+        ///     BuildReport and live project state. Accepted limitation.
+        /// </summary>
+        [Test]
+        public void EvaluatedReport_BlocksOnGradedFailuresOnly()
         {
             FacebookPlatformValidator.ProbeResult unreachable =
                 FacebookPlatformValidator.EvaluateResponse(true, 0, null, "123456", "Android", 0);
 
-            var results = new List<BuildValidator.ValidationResult>
-            {
-                BuildValidator.GradeFacebookPlatform(false, default, null),
-                BuildValidator.GradeMaxAdMobAppId("", "Android"),
-                BuildValidator.GradeFacebookPlatform(true, unreachable.State, unreachable.Detail),
-            };
+            ReadinessReport report = ReadinessEvaluator.Evaluate(Context(FullSuite),
+                new List<BuildValidator.ValidationResult>
+                {
+                    BuildValidator.GradeFacebookPlatform(false, default, null),
+                    BuildValidator.GradeMaxAdMobAppId("", "Android"),
+                    BuildValidator.GradeFacebookPlatform(true, unreachable.State, unreachable.Detail),
+                });
 
-            List<BuildValidator.ValidationResult> blocking = BuildValidator.BlockingErrors(results);
+            CollectionAssert.AreEquivalent(
+                new[] { ReadinessChecks.FacebookPlatformConfig.Id, ReadinessChecks.MaxSettings.Id },
+                report.BlockingRows.Select(r => r.Check.Id).ToList());
+        }
 
-            Assert.AreEqual(2, blocking.Count);
-            Assert.IsTrue(blocking.TrueForAll(r => r.Status == BuildValidator.ValidationStatus.Error));
+        /// <summary>
+        ///     PINNING REGRESSION for the blocking source: the Firebase config producer observes without
+        ///     asking whether its row applies, so on an incomplete Full suite it can emit an Error against a
+        ///     row the catalog resolves NotApplicable. The report discards it - and because the build block
+        ///     reads that same report, the discarded finding cannot fail a build with nothing on screen to
+        ///     explain it. Reading raw producer results is exactly the shape this pins shut.
+        /// </summary>
+        [Test]
+        public void ProducerErrorOnANotApplicableRow_IsDiscardedAndNeverBlocks()
+        {
+            ReadinessReport report = ReadinessEvaluator.Evaluate(
+                // Full mode with FirebaseApp alone: an incomplete suite, which the package check owns.
+                Context(SdkModule.GameAnalytics | SdkModule.Facebook | SdkModule.FirebaseApp),
+                new List<BuildValidator.ValidationResult>
+                {
+                    Observed(ReadinessChecks.FirebaseConfigAndroid, BuildValidator.ValidationStatus.Error,
+                        "google-services.json not found."),
+                });
+            ReadinessRow row = report.Rows.Single(r => r.Check == ReadinessChecks.FirebaseConfigAndroid);
+
+            Assert.AreEqual(ReadinessDisposition.NotApplicable, row.Disposition);
+            Assert.IsEmpty(report.BlockingRows);
+        }
+
+        /// <summary>
+        ///     ...and where the same row IS gradable, the Error blocks - so discarding is scoped to
+        ///     inapplicability rather than quietly swallowing Firebase failures.
+        /// </summary>
+        [Test]
+        public void ProducerErrorOnAGradableFirebaseRow_Blocks()
+        {
+            ReadinessReport report = ReadinessEvaluator.Evaluate(Context(FullSuite),
+                new List<BuildValidator.ValidationResult>
+                {
+                    Observed(ReadinessChecks.FirebaseConfigAndroid, BuildValidator.ValidationStatus.Error,
+                        "google-services.json not found."),
+                });
+
+            CollectionAssert.AreEquivalent(
+                new[] { ReadinessChecks.FirebaseConfigAndroid.Id },
+                report.BlockingRows.Select(r => r.Check.Id).ToList());
         }
     }
 }

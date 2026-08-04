@@ -92,16 +92,69 @@ namespace Sorolla.Palette.Editor
         }
     }
 
+    /// <summary>
+    ///     ONE thing a check observed, with the action that resolves it. A check that observed five
+    ///     problems produces five of these, so the studio never gets four diagnoses collapsed into one
+    ///     line with a fix that only answers the fifth.
+    /// </summary>
+    internal sealed class ReadinessFinding
+    {
+        internal readonly ReadinessOutcome Outcome;
+        /// <summary>What was observed, in full. Never truncated to a first line: the lines after the
+        /// first are evidence, not decoration.</summary>
+        internal readonly string Evidence;
+        /// <summary>The action paired with THIS finding. On a passing finding it is a caveat naming what
+        /// the pass did not establish, not homework.</summary>
+        internal readonly string Fix;
+        /// <summary>The producer declined to verify (Skipped) somewhere nothing was required - a neutral
+        /// notice, never an affirmative pass.</summary>
+        internal readonly bool Informational;
+
+        internal ReadinessFinding(ReadinessOutcome outcome, string evidence, string fix, bool informational)
+        {
+            Outcome = outcome;
+            Evidence = evidence;
+            Fix = fix;
+            Informational = informational;
+        }
+    }
+
+    /// <summary>
+    ///     One check's stable identity, holding every finding that check produced, in the order produced.
+    ///     Outcome is DERIVED from the findings rather than stored, so a row can never disagree with the
+    ///     evidence rendered under it.
+    /// </summary>
     internal sealed class ReadinessRow
     {
         internal ReadinessCheck Check;
-        internal ReadinessOutcome Outcome;
         internal ReadinessRequirement Requirement;
         internal string RequirementReason;
         internal ReadinessDisposition Disposition;
-        internal string Evidence;
-        internal string Fix;
-        internal bool Informational;
+        internal IReadOnlyList<ReadinessFinding> Findings = Array.Empty<ReadinessFinding>();
+
+        /// <summary>The worst finding. A row with NO findings is an inert row (not applicable here, or an
+        /// optional check nothing reported on): it never voted, which is why the renderers label it
+        /// explicitly instead of printing this default.</summary>
+        internal ReadinessOutcome Outcome => Findings.Count == 0
+            ? ReadinessOutcome.Pass
+            : WorstOf(Findings.Select(f => f.Outcome));
+
+        internal bool Informational => Findings.Count > 0 && Findings.All(f => f.Informational);
+
+        /// <summary>The ONE severity order in the readiness model: a proven failure outranks an unproven
+        /// one, which outranks a caveat, which outranks a pass.</summary>
+        internal static ReadinessOutcome WorstOf(IEnumerable<ReadinessOutcome> outcomes)
+        {
+            ReadinessOutcome worst = ReadinessOutcome.Pass;
+            foreach (ReadinessOutcome outcome in outcomes)
+            {
+                if (outcome == ReadinessOutcome.Fail) return ReadinessOutcome.Fail;
+                if (outcome == ReadinessOutcome.Incomplete) worst = ReadinessOutcome.Incomplete;
+                else if (outcome == ReadinessOutcome.Warn && worst == ReadinessOutcome.Pass)
+                    worst = ReadinessOutcome.Warn;
+            }
+            return worst;
+        }
     }
 
     internal sealed class ReadinessReport
@@ -112,13 +165,26 @@ namespace Sorolla.Palette.Editor
         internal ReadinessContext Context;
         internal Greenlight.GreenlightReportExport.Fingerprint Fingerprint;
 
-        internal int FailCount => Rows.Count(r => r.Disposition == ReadinessDisposition.Evaluated &&
-                                                  r.Outcome == ReadinessOutcome.Fail);
+        /// <summary>
+        ///     The ONE pre-build blocking rule, read by <see cref="BuildValidatorPreprocessor" />: a row this
+        ///     report GRADES as a failure blocks the build, and nothing else does. It reads the evaluated
+        ///     model rather than raw producer results on purpose - an observation the report discards (a gate
+        ///     that does not apply here) can then never block a build with nothing on screen to explain it,
+        ///     and an unproven result (Incomplete) never blocks at all.
+        /// </summary>
+        internal IReadOnlyList<ReadinessRow> BlockingRows =>
+            Rows.Where(r => r.Disposition == ReadinessDisposition.Evaluated &&
+                            r.Outcome == ReadinessOutcome.Fail).ToList();
+
+        internal int FailCount => BlockingRows.Count;
         internal int WarnCount => Rows.Count(r => r.Disposition == ReadinessDisposition.Evaluated &&
                                                   r.Outcome == ReadinessOutcome.Warn);
-        internal int WaitCount => IntegrityErrors.Count + Rows.Count(r =>
-            r.Disposition == ReadinessDisposition.Omitted || r.Outcome == ReadinessOutcome.Incomplete);
+        internal int WaitCount => IntegrityErrors.Count +
+                                  Rows.Count(r => r.Outcome == ReadinessOutcome.Incomplete);
+        /// <summary>Evaluated rows that actually passed. A Skipped observation is NOT counted here: where
+        /// the check was required it grades Incomplete (and lands in <see cref="WaitCount" />), and where it
+        /// was not required the row's own Pass outcome already covers it.</summary>
         internal int PassCount => Rows.Count(r => r.Disposition == ReadinessDisposition.Evaluated &&
-                                                  (r.Outcome == ReadinessOutcome.Pass || r.Informational));
+                                                  r.Outcome == ReadinessOutcome.Pass);
     }
 }

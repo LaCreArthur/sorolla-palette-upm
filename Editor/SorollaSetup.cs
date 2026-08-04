@@ -27,8 +27,16 @@ namespace Sorolla.Palette.Editor
         {
             // This repair is idempotent and must not be hidden behind the one-time dependency gate.
             CopyLinkXmlToAssets();
-            foreach (string fix in BuildValidator.RunSafeAutoFixes())
+
+            // The auto-fix pass writes real project files (AndroidManifest.xml, Gradle templates, AppLovin
+            // settings) with the AssetDatabase refresh deliberately deferred to its caller. On this
+            // reload-time path nothing else refreshes, so without this the edits stay invisible in the
+            // Project window until the next unrelated import.
+            var fixes = BuildValidator.RunSafeAutoFixes();
+            foreach (string fix in fixes)
                 Debug.Log($"[Palette] Auto-fix: {fix}");
+            if (fixes.Count > 0)
+                AssetDatabase.Refresh();
 
             if (EditorPrefs.GetBool(SetupKey, false))
                 return;

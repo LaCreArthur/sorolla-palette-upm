@@ -13,17 +13,15 @@ namespace Sorolla.Palette.Editor
         /// <summary>
         ///     Check AppLovin MAX settings for known issues
         /// </summary>
-        static List<ValidationResult> CheckMaxSettings()
+        static void CheckMaxSettings(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
-
 #if SOROLLA_MAX_INSTALLED
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
                 EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)
             {
                 results.Add(Skipped(ReadinessChecks.MaxSettings,
                     "Select Android or iOS to check AppLovin MAX settings"));
-                return results;
+                return;
             }
 
             MaxSettingsSanitizer.SyncEmbeddedSdkKey();
@@ -34,9 +32,14 @@ namespace Sorolla.Palette.Editor
                 results.Add(Error(
                     ReadinessChecks.MaxSettings,
                     "AppLovin MAX SDK key auto-sync failed.\n" +
-                    "  The shared publisher key could not be written to AppLovinSettings.",
-                    "Reopen Unity or click Refresh above; report this if it persists."));
-                return results;
+                    "  The shared publisher key could not be written to AppLovinSettings, which lives in " +
+                    "Assets/MaxSdk/Resources/AppLovinSettings.asset.\n" +
+                    "  Ads cannot initialize without it, and the sync has already retried this pass.",
+                    // The expected value is quoted from the SDK's own constant, not from a doc: the check is
+                    // an exact string match, so a doc that drifted would fail it again silently.
+                    "Open AppLovin > Integration Manager and set SDK Key to exactly:\n" +
+                    $"  {PaletteConstants.MaxSdkKey}"));
+                return;
             }
 
             if (!MaxSettingsSanitizer.IsConsentFlowConfigured())
@@ -44,9 +47,14 @@ namespace Sorolla.Palette.Editor
                 results.Add(Error(
                     ReadinessChecks.MaxSettings,
                     "AppLovin consent flow auto-sync failed.\n" +
-                    "  The shared privacy policy URL could not be written to AppLovin internal settings.",
-                    "Reopen Unity or click Refresh above; report this if it persists."));
-                return results;
+                    "  The shared privacy policy URL could not be written to AppLovin internal settings " +
+                    "(Assets/MaxSdk/Resources/AppLovinSettings.asset).\n" +
+                    "  Without it the consent flow ships without a privacy policy, and the sync has already " +
+                    "retried this pass.",
+                    "Open AppLovin > Integration Manager > Consent Flow, enable it, and set the privacy " +
+                    "policy URL to exactly:\n" +
+                    $"  {PaletteConstants.PrivacyPolicyUrl}"));
+                return;
             }
 
             // MAX installed = the game intends to show ads (no separate "ads enabled" flag exists on
@@ -95,15 +103,13 @@ namespace Sorolla.Palette.Editor
             }
 
             // A missing AdMob id and missing ad units are two separate studio actions, so both findings are
-            // produced rather than the first returning early. The evaluator still collapses this row to its
-            // worst finding today - this is preparation for §4's multi-finding retention, not that behavior.
+            // produced rather than the first returning early - and both survive evaluation with their own
+            // fix, in the window and in the copied report.
             if (results.Count == 0)
                 results.Add(Valid(ReadinessChecks.MaxSettings, "MAX settings synced"));
 #else
             results.Add(Skipped(ReadinessChecks.MaxSettings, "MAX not installed"));
 #endif
-
-            return results;
         }
 
         /// <summary>
@@ -151,22 +157,20 @@ namespace Sorolla.Palette.Editor
         ///     schema limitation on an unsupported setup, deliberately not fixed (see
         ///     greenlight-backtest-2026-07.md, "Vendor platform-scoping sweep").
         /// </summary>
-        static List<ValidationResult> CheckAdjustSettings(Dictionary<string, object> dependencies)
+        static void CheckAdjustSettings(List<ValidationResult> results, Dictionary<string, object> dependencies)
         {
-            var results = new List<ValidationResult>();
-
             // Only check in Full mode when Adjust is installed
             if (!SorollaSettings.IsConfigured || SorollaSettings.IsPrototype)
             {
                 results.Add(Skipped(ReadinessChecks.AdjustSettings, "Adjust not required"));
-                return results;
+                return;
             }
 
             if (!SdkDetector.IsInstalled(SdkId.Adjust))
             {
                 // Installation is checked by CheckRequiredSdks - just skip config check here
                 results.Add(Skipped(ReadinessChecks.AdjustSettings, "Adjust not installed"));
-                return results;
+                return;
             }
 
             var config = Resources.Load<SorollaConfig>("SorollaConfig");
@@ -176,7 +180,7 @@ namespace Sorolla.Palette.Editor
                     ReadinessChecks.AdjustSettings,
                     "SorollaConfig not found - cannot validate Adjust app token",
                     "Create config via Assets > Create > Palette > Config"));
-                return results;
+                return;
             }
 
             SdkConfigDetector.ConfigStatus adjustStatus = SdkConfigDetector.GetAdjustStatus(config);
@@ -209,16 +213,13 @@ namespace Sorolla.Palette.Editor
                     "  Purchases will track everywhere else and send no revenue event to Adjust.",
                     "Adjust dashboard > this app > All Settings > Events: add a revenue/\"Purchase\" event and paste its 6-character event token below"));
             }
-
-            return results;
         }
 
         /// <summary>
         ///     Check for duplicate EDM4U installations and Gradle template mode configuration.
         /// </summary>
-        static List<ValidationResult> CheckEdm4uSettings()
+        static void CheckEdm4uSettings(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             bool hasIssues = false;
 
             // Check for duplicate installations
@@ -242,8 +243,6 @@ namespace Sorolla.Palette.Editor
 
             if (!hasIssues)
                 results.Add(Valid(ReadinessChecks.Edm4uSettings, "EDM4U settings OK"));
-
-            return results;
         }
 
         /// <summary>

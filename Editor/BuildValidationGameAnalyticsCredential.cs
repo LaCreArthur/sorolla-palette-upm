@@ -17,28 +17,27 @@ namespace Sorolla.Palette.Editor
         ///     credentials (greenlight probe spike 2026-07-10). The fix text for a pass always reminds
         ///     the studio to verify platform registration manually; do not drop that reminder.
         /// </summary>
-        static List<ValidationResult> CheckGameAnalyticsCredential()
+        static void CheckGameAnalyticsCredential(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.GameAnalyticsCredentialProbe;
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
                 EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)
             {
                 results.Add(Skipped(category, "Select Android or iOS to check GameAnalytics credentials"));
-                return results;
+                return;
             }
 
             if (!SdkDetector.IsInstalled(SdkId.GameAnalytics))
             {
                 results.Add(Skipped(category, "GameAnalytics not installed"));
-                return results;
+                return;
             }
 
             if (!SdkConfigDetector.TryGetGameAnalyticsCredentials(out string gameKey, out string secretKey))
             {
                 results.Add(Skipped(category, "GameAnalytics game key/secret key not set, credential probe skipped"));
-                return results;
+                return;
             }
 
             GameAnalyticsCredentialValidator.EnsureChecked(gameKey, secretKey);
@@ -71,16 +70,15 @@ namespace Sorolla.Palette.Editor
                     // that its platform is missing from the dashboard would be nowhere. GameAnalytics accepts
                     // events for an unregistered platform on valid credentials, so the probe passing here is
                     // genuinely not the same fact.
-                    // The message carries the short form because a passing row renders its message but
-                    // suppresses fix text; the long form rides in the copied report, which keeps every row.
+                    // Both forms now reach the studio: the short one on the row's own line, the long one as
+                    // the finding's paired action, which a PASSING finding renders as "Note:" rather than
+                    // "Fix:" - a caveat naming what the pass did not establish, not homework.
                     results.Add(Valid(category, $"{probe.Detail} (platform registration not verified)",
                         "Confirm the ACTIVE platform is added to this game in the GameAnalytics dashboard - "
                         + "valid keys do not prove the platform exists there, and GameAnalytics accepts events "
                         + "for an unregistered platform."));
                     break;
             }
-
-            return results;
         }
     }
 }

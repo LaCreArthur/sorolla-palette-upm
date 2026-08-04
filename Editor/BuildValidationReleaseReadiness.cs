@@ -19,16 +19,15 @@ namespace Sorolla.Palette.Editor
         ///     Drift hygiene, not a leak gate - runtime already forces verboseLogging off in
         ///     non-development builds. Still worth surfacing so a stray "on" doesn't get committed.
         /// </summary>
-        static List<ValidationResult> CheckVerboseLogging()
+        static void CheckVerboseLogging(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.VerboseLogging;
 
             var config = Resources.Load<SorollaConfig>("SorollaConfig");
             if (config == null)
             {
                 results.Add(Skipped(category, "SorollaConfig not found"));
-                return results;
+                return;
             }
 
             if (config.verboseLogging)
@@ -45,8 +44,6 @@ namespace Sorolla.Palette.Editor
             {
                 results.Add(Valid(category, "verboseLogging off"));
             }
-
-            return results;
         }
 
         /// <summary>
@@ -55,9 +52,8 @@ namespace Sorolla.Palette.Editor
         ///     Build flag is exactly as unwanted in a QA-pass build meant to mirror release as in a
         ///     release build.
         /// </summary>
-        static List<ValidationResult> CheckDevelopmentBuildFlag()
+        static void CheckDevelopmentBuildFlag(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.DevelopmentBuild;
 
             bool anyProfileFlagged = false;
@@ -75,7 +71,7 @@ namespace Sorolla.Palette.Editor
             if (!anyProfileFlagged && !EditorUserBuildSettings.development)
             {
                 results.Add(Valid(category, "Development Build off"));
-                return results;
+                return;
             }
 
             // Which profile asset carries the flag is not something a studio acts on: the files are
@@ -85,8 +81,6 @@ namespace Sorolla.Palette.Editor
                 "Development Build is enabled.\n" +
                 "  A store submission built with Development Build carries debug symbols/profiler hooks and can be rejected or bloat the binary.",
                 "Uncheck Development Build in File > Build Settings (or the active Build Profile) before a release build"));
-
-            return results;
         }
 
         /// <summary>
@@ -97,15 +91,14 @@ namespace Sorolla.Palette.Editor
         ///     a release-phase-only gate, which meant the only people who could see it were the people who
         ///     already knew.
         /// </summary>
-        static List<ValidationResult> CheckAdjustSandboxMode()
+        static void CheckAdjustSandboxMode(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.AdjustSandboxMode;
 
             if (!SdkDetector.IsInstalled(SdkId.Adjust))
             {
                 results.Add(Skipped(category, "Adjust not installed"));
-                return results;
+                return;
             }
 
             var config = Resources.Load<SorollaConfig>("SorollaConfig");
@@ -121,8 +114,6 @@ namespace Sorolla.Palette.Editor
             {
                 results.Add(Valid(category, "Adjust sandbox mode off"));
             }
-
-            return results;
         }
 
         /// <summary>
@@ -131,15 +122,14 @@ namespace Sorolla.Palette.Editor
         ///     every window, but the build preprocessor stays quiet about it on development builds, where an
         ///     unset release keystore is the normal state rather than news.
         /// </summary>
-        static List<ValidationResult> CheckAndroidKeystore()
+        static void CheckAndroidKeystore(List<ValidationResult> results)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.AndroidKeystore;
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             {
                 results.Add(Skipped(category, "not an Android build target"));
-                return results;
+                return;
             }
 
             string keystoreName = PlayerSettings.Android.keystoreName;
@@ -155,8 +145,6 @@ namespace Sorolla.Palette.Editor
             {
                 results.Add(Valid(category, "Android keystore configured"));
             }
-
-            return results;
         }
 
         /// <summary>
@@ -164,15 +152,14 @@ namespace Sorolla.Palette.Editor
         ///     Addressables-loaded assets - or IL2CPP types reachable only via Addressables - can be
         ///     absent from the built player.
         /// </summary>
-        static List<ValidationResult> CheckAddressablesContent(Dictionary<string, object> dependencies)
+        static void CheckAddressablesContent(List<ValidationResult> results, Dictionary<string, object> dependencies)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.AddressablesContent;
 
             if (!dependencies.ContainsKey("com.unity.addressables"))
             {
                 results.Add(Skipped(category, "Addressables not installed"));
-                return results;
+                return;
             }
 
             bool hasAddressablesData = Directory.Exists(Path.Combine(Application.dataPath, "AddressableAssetsData"));
@@ -195,8 +182,6 @@ namespace Sorolla.Palette.Editor
             {
                 results.Add(Valid(category, "Addressables content present"));
             }
-
-            return results;
         }
 
         static readonly Regex SdkTagPattern = new Regex(@"#v\d+\.\d+\.\d+$");
@@ -205,15 +190,14 @@ namespace Sorolla.Palette.Editor
         ///     Warns when com.sorolla.sdk in manifest.json isn't pinned to a published #vX.Y.Z tag
         ///     (master/hash pins are irreproducible for a release build).
         /// </summary>
-        static List<ValidationResult> CheckSdkPin(Dictionary<string, object> dependencies)
+        static void CheckSdkPin(List<ValidationResult> results, Dictionary<string, object> dependencies)
         {
-            var results = new List<ValidationResult>();
             ReadinessCheck category = ReadinessChecks.SdkPin;
 
             if (!dependencies.TryGetValue("com.sorolla.sdk", out object sdkRefObj))
             {
                 results.Add(Skipped(category, "com.sorolla.sdk is an embedded/local package - no manifest pin to check"));
-                return results;
+                return;
             }
 
             string sdkRef = sdkRefObj?.ToString() ?? "";
@@ -233,8 +217,6 @@ namespace Sorolla.Palette.Editor
                     // #v3.18.3 against the 4.0.0 line).
                     "Pin com.sorolla.sdk to a published tag (e.g. #v4.0.0) before a release build"));
             }
-
-            return results;
         }
     }
 }

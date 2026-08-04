@@ -37,7 +37,12 @@ namespace Sorolla.Palette.Editor
                 : Optional("included optional capability");
         };
 
-        static Func<ReadinessContext, ReadinessRequirementDecision> FirebaseSuite() => context =>
+        /// <summary>
+        ///     The SOLE owner of Firebase applicability. The config producers never ask this question: they
+        ///     observe, and the evaluator discards what does not apply. Exposed only so the three-way answer
+        ///     is directly pinned by a test.
+        /// </summary>
+        internal static ReadinessRequirementDecision FirebaseSuite(ReadinessContext context)
         {
             if (context.Mode == EvalMode.Unknown)
                 return Unknown("SDK mode is unknown (no config)");
@@ -52,7 +57,7 @@ namespace Sorolla.Palette.Editor
             return included == SdkModule.None
                 ? NotApplicable("capability is not included in Prototype")
                 : Optional("included optional capability");
-        };
+        }
 
         static Func<ReadinessContext, ReadinessRequirementDecision> OnPlatform(
             ReadinessPlatform platform,
@@ -71,7 +76,7 @@ namespace Sorolla.Palette.Editor
         internal static readonly ReadinessCheck ScopedRegistries =
             Check("build.scoped_registries", "Scoped Registries", ReadinessGroup.BuildAndProject, AlwaysOptional);
         internal static readonly ReadinessCheck FirebaseCoherence =
-            Check("build.firebase_coherence", "Firebase Coherence", ReadinessGroup.Firebase, FirebaseSuite(), SdkModule.Firebase);
+            Check("build.firebase_coherence", "Firebase Coherence", ReadinessGroup.Firebase, FirebaseSuite, SdkModule.Firebase);
         internal static readonly ReadinessCheck ConfigSync =
             Check("build.config_sync", "Config Sync", ReadinessGroup.BuildAndProject, AlwaysOptional);
         internal static readonly ReadinessCheck AndroidManifest =
@@ -86,10 +91,10 @@ namespace Sorolla.Palette.Editor
             Check("build.gradle_config", "Gradle Configuration", ReadinessGroup.BuildAndProject, AlwaysOptional);
         internal static readonly ReadinessCheck FirebaseConfigAndroid =
             Check("build.firebase_config_android", "Firebase Android Config", ReadinessGroup.Firebase,
-                OnPlatform(ReadinessPlatform.Android, FirebaseSuite()), SdkModule.Firebase);
+                OnPlatform(ReadinessPlatform.Android, FirebaseSuite), SdkModule.Firebase);
         internal static readonly ReadinessCheck FirebaseConfigIos =
             Check("build.firebase_config_ios", "Firebase iOS Config", ReadinessGroup.Firebase,
-                OnPlatform(ReadinessPlatform.iOS, FirebaseSuite()), SdkModule.Firebase);
+                OnPlatform(ReadinessPlatform.iOS, FirebaseSuite), SdkModule.Firebase);
         internal static readonly ReadinessCheck GameAnalyticsSettings =
             Check("build.gameanalytics_keys", "GameAnalytics Platform Keys", ReadinessGroup.GameAnalytics,
                 Dependent(SdkModule.GameAnalytics), SdkModule.GameAnalytics);
