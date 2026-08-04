@@ -25,14 +25,14 @@ namespace Sorolla.Palette.Editor.UI
         /// mechanism behind it ("Greenlight" meant nothing to a studio reading it cold).</summary>
         const string SectionTitle = "Launch Readiness";
 
-        static readonly GreenlightAdapter.VendorGroup[] GroupOrder =
+        static readonly ReadinessGroup[] GroupOrder =
         {
-            GreenlightAdapter.VendorGroup.GameAnalytics,
-            GreenlightAdapter.VendorGroup.Facebook,
-            GreenlightAdapter.VendorGroup.Firebase,
-            GreenlightAdapter.VendorGroup.AppLovinMax,
-            GreenlightAdapter.VendorGroup.Adjust,
-            GreenlightAdapter.VendorGroup.BuildAndProject,
+            ReadinessGroup.GameAnalytics,
+            ReadinessGroup.Facebook,
+            ReadinessGroup.Firebase,
+            ReadinessGroup.AppLovinMax,
+            ReadinessGroup.Adjust,
+            ReadinessGroup.BuildAndProject,
         };
 
         /// <summary>Checks a studio should see even when green - the facts a studio acts on or asks
@@ -43,20 +43,20 @@ namespace Sorolla.Palette.Editor.UI
         /// home, addressables, pin) stays hidden while passing; Copy Report still carries every one of them.</summary>
         static readonly HashSet<string> VisibleWhenPassing = new HashSet<string>
         {
-            GateIds.BuildRequiredSdks,
-            GateIds.BuildSdkVersions,
-            GateIds.BuildModeConsistency,
-            GateIds.BuildAndroidManifest,
-            GateIds.BuildGradleConfig,
-            GateIds.BuildDevelopmentBuild,
-            GateIds.BuildGameAnalyticsKeys,
-            GateIds.BuildGameAnalyticsCredentials,
-            GateIds.BuildFirebaseConfigAndroid,
-            GateIds.BuildFirebaseConfigIos,
+            ReadinessChecks.RequiredSdks.Id,
+            ReadinessChecks.VersionMismatches.Id,
+            ReadinessChecks.ModeConsistency.Id,
+            ReadinessChecks.AndroidManifest.Id,
+            ReadinessChecks.GradleConfig.Id,
+            ReadinessChecks.DevelopmentBuild.Id,
+            ReadinessChecks.GameAnalyticsSettings.Id,
+            ReadinessChecks.GameAnalyticsCredentialProbe.Id,
+            ReadinessChecks.FirebaseConfigAndroid.Id,
+            ReadinessChecks.FirebaseConfigIos.Id,
             // Sandbox mode carries its own toggle on the row, so the row must stay visible when the check
             // passes (sandbox off) - otherwise the only way to turn sandbox ON for a verification run would
             // be to go find the raw config asset.
-            GateIds.BuildAdjustSandboxMode,
+            ReadinessChecks.AdjustSandboxMode.Id,
         };
 
         // Per-group expand/collapse memory for the window session; the attention-based default only applies
@@ -84,7 +84,7 @@ namespace Sorolla.Palette.Editor.UI
 
         /// <summary>Clear-and-rebuild from a fresh report. A group renders iff it has at least one visible
         /// row or one input - no "all clear" lines, no count-only headers with nothing beneath them.</summary>
-        internal void Refresh(GreenlightEvaluator.Report report, IReadOnlyList<string> autoFixLog)
+        internal void Refresh(ReadinessReport report, IReadOnlyList<string> autoFixLog)
         {
             _container.Clear();
             _container.Add(BuildHeader(report));
@@ -100,15 +100,20 @@ namespace Sorolla.Palette.Editor.UI
                 _container.Add(fixLabel);
             }
 
+            foreach (string error in report.IntegrityErrors)
+                _container.Add(new HelpBox(
+                    $"Readiness report incomplete: {error} Report this to Sorolla.",
+                    HelpBoxMessageType.Error));
+
             bool anyOpen = false;
             foreach (GroupModel group in BuildGroups(report))
             {
-                List<GreenlightEvaluator.Row> visibleRows = group.Rows.Where(RowVisible).ToList();
+                List<ReadinessRow> visibleRows = group.Rows.Where(RowVisible).ToList();
                 if (visibleRows.Count == 0 && group.Inputs.Count == 0) continue;
                 anyOpen = true;
 
                 var rowElements = new List<VisualElement>();
-                foreach (GreenlightEvaluator.Row row in visibleRows)
+                foreach (ReadinessRow row in visibleRows)
                     rowElements.Add(BuildRow(row, group.Id));
                 rowElements.AddRange(group.Inputs);
 
@@ -119,7 +124,7 @@ namespace Sorolla.Palette.Editor.UI
             {
                 // The empty state must agree with the badge beside it: green, or still waiting on evidence
                 // the studio can produce.
-                var clear = new Label(report.Outcome == GateOutcome.Pass
+                var clear = new Label(report.Outcome == ReadinessOutcome.Pass
                     ? "Your setup is clean - everything the SDK can check before a build is green."
                     : "Your setup is clean - the remaining evidence comes from running the game.");
                 clear.AddToClassList("sorolla-type-small");
@@ -130,7 +135,7 @@ namespace Sorolla.Palette.Editor.UI
                 _container.Bind(_configInputs.SerializedConfig);
         }
 
-        VisualElement BuildHeader(GreenlightEvaluator.Report report)
+        VisualElement BuildHeader(ReadinessReport report)
         {
             var header = new VisualElement();
 
@@ -177,13 +182,13 @@ namespace Sorolla.Palette.Editor.UI
         /// <summary>Names the platform this report judged, and says where the other platform's checks are.
         /// Off-mobile there is no mobile build to judge, so it points at the two targets that are checkable
         /// rather than naming one of them as missing.</summary>
-        static string ScopeLine(EvaluationContext context)
+        static string ScopeLine(ReadinessContext context)
         {
             switch (context?.Platform)
             {
-                case EvalPlatform.Android:
+                case ReadinessPlatform.Android:
                     return "Judging the Android build target. Switch platform in Build Settings to check iOS.";
-                case EvalPlatform.iOS:
+                case ReadinessPlatform.iOS:
                     return "Judging the iOS build target. Switch platform in Build Settings to check Android.";
                 default:
                     return $"Judging the {EditorUserBuildSettings.activeBuildTarget} build target. " +
@@ -194,7 +199,7 @@ namespace Sorolla.Palette.Editor.UI
         /// <summary>The window-wide actions (Refresh / Connect Device / Copy Report), fixed in the header
         /// below the hero - one home for global actions, no in-content duplicates. Repopulated on every
         /// refresh so the Connect button's state tracks the snapshot phase.</summary>
-        void RefreshHeaderActions(GreenlightEvaluator.Report report)
+        void RefreshHeaderActions(ReadinessReport report)
         {
             if (_headerActionsHost == null) return;
             _headerActionsHost.Clear();
@@ -215,7 +220,7 @@ namespace Sorolla.Palette.Editor.UI
             // safe to ship.
             var copyButton = new Button(() =>
                     EditorGUIUtility.systemCopyBuffer =
-                        GreenlightReportExport.ToText(report.Health, report.Fingerprint, report.Context))
+                        GreenlightReportExport.ToText(report))
                 { text = "Copy Report" };
             copyButton.AddToClassList("sorolla-button-small");
             actionsRow.Add(copyButton);
@@ -228,7 +233,7 @@ namespace Sorolla.Palette.Editor.UI
         /// status detail + optional action button + status pill, above a collapsible rows container.
         /// Effective status = the vendor's own state, escalated (never downgraded) by the worst VISIBLE row.
         /// Only the arrow toggles folding, so the header's Edit/Console/Install button stays a plain click.</summary>
-        VisualElement BuildGroupSection(GroupModel group, List<GreenlightEvaluator.Row> visibleRows,
+        VisualElement BuildGroupSection(GroupModel group, List<ReadinessRow> visibleRows,
             List<VisualElement> rowElements)
         {
             string title = group.Title;
@@ -239,7 +244,7 @@ namespace Sorolla.Palette.Editor.UI
             Action action = null;
             bool actionEnabled = true;
 
-            RowStatus rowsWorst = WorstOfRows(visibleRows);
+            ReadinessOutcome rowsWorst = WorstOfRows(visibleRows);
             if (group.Status != null)
             {
                 VendorStatus own = group.Status;
@@ -254,15 +259,15 @@ namespace Sorolla.Palette.Editor.UI
                     VendorStatus.Phase.Installing => ("INSTALLING", StatusBadge.Severity.Wait),
                     VendorStatus.Phase.NotInstalled => ("NOT INSTALLED", StatusBadge.Severity.Gated),
                     VendorStatus.Phase.Disabled => ("DISABLED", StatusBadge.Severity.Gated),
-                    VendorStatus.Phase.Fail => BadgeFor(RowStatus.Fail),
-                    VendorStatus.Phase.Warn => BadgeFor(RowStatus.Warn),
+                    VendorStatus.Phase.Fail => BadgeFor(ReadinessOutcome.Fail),
+                    VendorStatus.Phase.Warn => BadgeFor(ReadinessOutcome.Warn),
                     _ => BadgeFor(rowsWorst), // Pass: visible rows may escalate, never downgrade
                 };
             }
             else
             {
                 (badgeText, badgeSeverity) = BadgeFor(rowsWorst);
-                int issues = visibleRows.Count(r => r.Status != RowStatus.Pass && r.Status != RowStatus.Info);
+                int issues = visibleRows.Count(r => r.Outcome != ReadinessOutcome.Pass);
                 // A lone item doesn't need a number (round-3 ruling) - "1 need attention" reads oddly.
                 detail = issues == 0 ? null : issues == 1 ? "Needs attention" : $"{issues} need attention";
             }
@@ -334,7 +339,7 @@ namespace Sorolla.Palette.Editor.UI
 
         /// <summary>A check row plus any in-editor remedy control for that gate. Every row here is
         /// machine-checked and carries real fix text.</summary>
-        VisualElement BuildRow(GreenlightEvaluator.Row row, GreenlightAdapter.VendorGroup group)
+        VisualElement BuildRow(ReadinessRow row, ReadinessGroup group)
         {
             var container = new VisualElement();
 
@@ -344,8 +349,9 @@ namespace Sorolla.Palette.Editor.UI
             // platform-registration caveat rides in that row's own message rather than as fix text,
             // precisely so a passing row can still state what it did not prove.) Info rows - a deliberate
             // skip or absence - get the same treatment: a skip is not a caveat to resolve.
-            bool isPass = row.Status == RowStatus.Pass || row.Status == RowStatus.Info;
-            container.Add(CheckRow.Create(TrimGroupPrefix(row.Label, group), row.Status, row.Detail,
+            bool isPass = row.Outcome == ReadinessOutcome.Pass;
+            container.Add(CheckRow.Create(TrimGroupPrefix(row.Check.Label, group), row.Outcome,
+                row.Informational, row.Evidence,
                 isPass ? null : row.Fix));
 
             // No per-row "Open GA/FB Settings" buttons: every row that had one sits under a group header
@@ -354,21 +360,18 @@ namespace Sorolla.Palette.Editor.UI
             // Sandbox mode is the one check whose remedy is a single boolean, so the control belongs ON the
             // row rather than in the vendor's field list further down. Rendered on a passing row too, so
             // turning sandbox ON for a verification run is possible from here as well.
-            if (row.GateId == GateIds.BuildAdjustSandboxMode)
+            if (row.Check.Id == ReadinessChecks.AdjustSandboxMode.Id)
                 container.Add(ConfigInputsView.SandboxModeToggle());
 
             // Mode Consistency's fix is literally this window's own hero-header mode switch, so render
             // it as a row action instead of prose alone. The switch always targets "the other mode" (only
             // two exist), so it is correct whichever direction this row's issue points.
-            if (row.GateId == GateIds.BuildModeConsistency && !isPass)
+            if (row.Check.Id == ReadinessChecks.ModeConsistency.Id && !isPass)
                 container.Add(RowAction("Switch Mode", _onModeSwitch, enabled: !EditorApplication.isPlaying));
 
             // Report Integrity is the synthetic row, and the ONLY row with no gate id (a schema/contract
             // error rather than a gate result). Its fix says "report it to Sorolla" with no channel to do
             // so, so point it straight at the issue tracker.
-            if (row.GateId == null && !isPass)
-                container.Add(RowAction("Report Issue", () => Application.OpenURL(FooterLinks.IssuesUrl)));
-
             return container;
         }
 
@@ -384,59 +387,61 @@ namespace Sorolla.Palette.Editor.UI
         /// <summary>The ONE pure view filter: every row that needs attention, plus the
         /// <see cref="VisibleWhenPassing"/> whitelist. Every remaining row is machine-checked and
         /// studio-actionable, so there is no per-row exception left.</summary>
-        static bool RowVisible(GreenlightEvaluator.Row row) =>
-            row.Status != RowStatus.Pass && row.Status != RowStatus.Info ||
-            VisibleWhenPassing.Contains(row.GateId);
+        static bool RowVisible(ReadinessRow row) =>
+            row.Outcome != ReadinessOutcome.Pass ||
+            VisibleWhenPassing.Contains(row.Check.Id);
 
         /// <summary>Header pill for a group's effective status, in the report's own vocabulary.</summary>
-        static (string text, StatusBadge.Severity severity) BadgeFor(RowStatus status) => status switch
+        static (string text, StatusBadge.Severity severity) BadgeFor(ReadinessOutcome status) => status switch
         {
-            RowStatus.Fail => ("ERROR", StatusBadge.Severity.Fail),
-            RowStatus.Warn => ("WARN", StatusBadge.Severity.Advisory),
-            RowStatus.Wait => ("INCOMPLETE", StatusBadge.Severity.Wait),
-            _ => ("GREEN", StatusBadge.Severity.Pass), // Pass and Info both read as clean at group level
+            ReadinessOutcome.Fail => ("ERROR", StatusBadge.Severity.Fail),
+            ReadinessOutcome.Warn => ("WARN", StatusBadge.Severity.Advisory),
+            ReadinessOutcome.Incomplete => ("INCOMPLETE", StatusBadge.Severity.Wait),
+            _ => ("GREEN", StatusBadge.Severity.Pass),
         };
 
         /// <summary>Worst status among a set of rows - the ONE place this is computed, fed by whatever the
         /// caller already filtered to be visible. Computing it from the pre-filtered list (not a separate
         /// side-channel query) is what keeps a header from ever contradicting what is rendered below it.</summary>
-        static RowStatus WorstOfRows(IEnumerable<GreenlightEvaluator.Row> rows)
+        static ReadinessOutcome WorstOfRows(IEnumerable<ReadinessRow> rows)
         {
-            RowStatus worst = RowStatus.Pass;
-            foreach (GreenlightEvaluator.Row r in rows)
+            ReadinessOutcome worst = ReadinessOutcome.Pass;
+            foreach (ReadinessRow r in rows)
             {
-                if (r.Status == RowStatus.Fail) return RowStatus.Fail; // can't get worse
-                if (r.Status == RowStatus.Warn) worst = RowStatus.Warn;
-                else if (r.Status == RowStatus.Wait && worst != RowStatus.Warn) worst = RowStatus.Wait;
+                if (r.Outcome == ReadinessOutcome.Fail) return ReadinessOutcome.Fail;
+                if (r.Outcome == ReadinessOutcome.Incomplete) worst = ReadinessOutcome.Incomplete;
+                else if (r.Outcome == ReadinessOutcome.Warn && worst == ReadinessOutcome.Pass)
+                    worst = ReadinessOutcome.Warn;
             }
             return worst;
         }
 
         /// <summary>Builds the group list from evaluator rows plus config state - the single data model the
         /// render reads. Grouping key is the gate's own catalog category, never label string-matching.</summary>
-        List<GroupModel> BuildGroups(GreenlightEvaluator.Report report)
+        List<GroupModel> BuildGroups(ReadinessReport report)
         {
-            var grouped = new Dictionary<GreenlightAdapter.VendorGroup, List<GreenlightEvaluator.Row>>();
-            foreach (GreenlightEvaluator.Row row in report.Rows)
+            var grouped = new Dictionary<ReadinessGroup, List<ReadinessRow>>();
+            foreach (ReadinessRow row in report.Rows)
             {
-                GreenlightAdapter.VendorGroup id = GreenlightAdapter.GroupFor(row.GateId);
-                if (!grouped.TryGetValue(id, out List<GreenlightEvaluator.Row> list))
-                    grouped[id] = list = new List<GreenlightEvaluator.Row>();
+                ReadinessGroup id = row.Check.Group;
+                if (!grouped.TryGetValue(id, out List<ReadinessRow> list))
+                    grouped[id] = list = new List<ReadinessRow>();
                 list.Add(row);
             }
 
             var groups = new List<GroupModel>();
-            foreach (GreenlightAdapter.VendorGroup id in GroupOrder)
+            foreach (ReadinessGroup id in GroupOrder)
             {
-                if (!GreenlightAdapter.GroupApplies(id, report.Context))
+                if (!report.Rows.Any(r => r.Check.Group == id &&
+                                          r.Disposition != ReadinessDisposition.NotApplicable))
                     continue;
 
-                grouped.TryGetValue(id, out List<GreenlightEvaluator.Row> rows);
+                grouped.TryGetValue(id, out List<ReadinessRow> rows);
                 groups.Add(new GroupModel
                 {
                     Id = id,
                     Title = GroupTitle(id),
-                    Rows = rows ?? new List<GreenlightEvaluator.Row>(),
+                    Rows = rows ?? new List<ReadinessRow>(),
                     // Inputs are built BEFORE the status: the Adjust status offers a "focus that
                     // field" action, and the fields have to exist for it to point at anything.
                     Inputs = _configInputs.BuildFor(id),
@@ -449,15 +454,15 @@ namespace Sorolla.Palette.Editor.UI
         /// <summary>Child rows inside a vendor group drop the redundant vendor name from their own label -
         /// "GameAnalytics Platform Keys" reads as "Platform Keys" once indented under a "GameAnalytics"
         /// header. Display-only: the gate id and the exported report keep the full name.</summary>
-        static string TrimGroupPrefix(string label, GreenlightAdapter.VendorGroup group)
+        static string TrimGroupPrefix(string label, ReadinessGroup group)
         {
             string prefix = group switch
             {
-                GreenlightAdapter.VendorGroup.GameAnalytics => "GameAnalytics ",
-                GreenlightAdapter.VendorGroup.Facebook => "Facebook ",
-                GreenlightAdapter.VendorGroup.Firebase => "Firebase ",
-                GreenlightAdapter.VendorGroup.AppLovinMax => "MAX ",
-                GreenlightAdapter.VendorGroup.Adjust => "Adjust ",
+                ReadinessGroup.GameAnalytics => "GameAnalytics ",
+                ReadinessGroup.Facebook => "Facebook ",
+                ReadinessGroup.Firebase => "Firebase ",
+                ReadinessGroup.AppLovinMax => "MAX ",
+                ReadinessGroup.Adjust => "Adjust ",
                 _ => null,
             };
             return !string.IsNullOrEmpty(prefix) && !string.IsNullOrEmpty(label) && label.StartsWith(prefix)
@@ -465,14 +470,14 @@ namespace Sorolla.Palette.Editor.UI
                 : label;
         }
 
-        static string GroupTitle(GreenlightAdapter.VendorGroup group) => group switch
+        static string GroupTitle(ReadinessGroup group) => group switch
         {
-            GreenlightAdapter.VendorGroup.GameAnalytics => "GameAnalytics",
-            GreenlightAdapter.VendorGroup.Facebook => "Facebook",
-            GreenlightAdapter.VendorGroup.Firebase => "Firebase",
-            GreenlightAdapter.VendorGroup.AppLovinMax => "AppLovin MAX",
-            GreenlightAdapter.VendorGroup.Adjust => "Adjust",
-            GreenlightAdapter.VendorGroup.BuildAndProject => "Build & Project",
+            ReadinessGroup.GameAnalytics => "GameAnalytics",
+            ReadinessGroup.Facebook => "Facebook",
+            ReadinessGroup.Firebase => "Firebase",
+            ReadinessGroup.AppLovinMax => "AppLovin MAX",
+            ReadinessGroup.Adjust => "Adjust",
+            ReadinessGroup.BuildAndProject => "Build & Project",
             _ => group.ToString(),
         };
 
@@ -481,9 +486,9 @@ namespace Sorolla.Palette.Editor.UI
         /// input (rendered unconditionally - the filter never touches inputs, only check rows).</summary>
         sealed class GroupModel
         {
-            internal GreenlightAdapter.VendorGroup Id;
+            internal ReadinessGroup Id;
             internal string Title;
-            internal List<GreenlightEvaluator.Row> Rows = new List<GreenlightEvaluator.Row>();
+            internal List<ReadinessRow> Rows = new List<ReadinessRow>();
             internal List<VisualElement> Inputs = new List<VisualElement>();
             internal VendorStatus Status;
         }

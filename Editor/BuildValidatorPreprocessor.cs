@@ -19,7 +19,6 @@ namespace Sorolla.Palette.Editor
 
             // Only synchronous repairs are safe here. Package resolution belongs to the editor workflow;
             // missing packages remain visible build errors instead of starting asynchronous UPM work mid-build.
-            BuildValidator.SyncConfigState();
             var fixes = BuildValidator.RunSafeAutoFixes();
             foreach (string fix in fixes)
                 Debug.Log($"[Palette BuildValidator] Auto-fix: {fix}");
@@ -45,7 +44,7 @@ namespace Sorolla.Palette.Editor
             bool releaseBuild = (report.summary.options & BuildOptions.Development) == 0;
             var warnings = results
                 .Where(r => r.Status == BuildValidator.ValidationStatus.Warning)
-                .Where(r => releaseBuild || !Greenlight.GreenlightAdapter.IsReleaseOnly(r.Category))
+                .Where(r => releaseBuild || !r.Check.ReleaseOnly)
                 .ToList();
             foreach (BuildValidator.ValidationResult warning in warnings)
                 Debug.LogWarning($"[Palette BuildValidator] WARNING: {warning.Message}");

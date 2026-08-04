@@ -1,4 +1,3 @@
-using Sorolla.Palette.Editor.Greenlight;
 using UnityEngine.UIElements;
 
 namespace Sorolla.Palette.Editor.UI
@@ -14,8 +13,10 @@ namespace Sorolla.Palette.Editor.UI
     /// </summary>
     static class CheckRow
     {
-        internal static VisualElement Create(string label, RowStatus status, string detail = null, string fix = null)
+        internal static VisualElement Create(string label, ReadinessOutcome outcome, bool informational,
+            string detail = null, string fix = null)
         {
+            string status = StatusFor(outcome, informational);
             var row = new VisualElement();
             row.AddToClassList("sorolla-check-row");
 
@@ -60,30 +61,39 @@ namespace Sorolla.Palette.Editor.UI
             return label;
         }
 
-        static string IconFor(RowStatus status) => status switch
+        static string StatusFor(ReadinessOutcome outcome, bool informational) =>
+            informational ? "info" : outcome switch
+            {
+                ReadinessOutcome.Pass => "pass",
+                ReadinessOutcome.Fail => "fail",
+                ReadinessOutcome.Warn => "warn",
+                _ => "wait",
+            };
+
+        static string IconFor(string status) => status switch
         {
-            RowStatus.Pass => "✓",
-            RowStatus.Fail => "✕",
-            RowStatus.Warn => "⚠",
-            RowStatus.Info => "ℹ",
+            "pass" => "✓",
+            "fail" => "✕",
+            "warn" => "⚠",
+            "info" => "ℹ",
             _ => "•",
         };
 
-        static string WordFor(RowStatus status) => status switch
+        static string WordFor(string status) => status switch
         {
-            RowStatus.Pass => "PASS",
-            RowStatus.Fail => "FAIL",
-            RowStatus.Warn => "WARN",
-            RowStatus.Info => "INFO",
+            "pass" => "PASS",
+            "fail" => "FAIL",
+            "warn" => "WARN",
+            "info" => "INFO",
             _ => "PENDING",
         };
 
-        static string ClassFor(RowStatus status) => status switch
+        static string ClassFor(string status) => status switch
         {
-            RowStatus.Pass => "sorolla-check-pass",
-            RowStatus.Warn => "sorolla-check-warn",
-            RowStatus.Fail => "sorolla-check-fail",
-            RowStatus.Info => "sorolla-check-info",
+            "pass" => "sorolla-check-pass",
+            "warn" => "sorolla-check-warn",
+            "fail" => "sorolla-check-fail",
+            "info" => "sorolla-check-info",
             _ => "sorolla-check-wait",
         };
     }

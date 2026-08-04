@@ -21,8 +21,8 @@ namespace Sorolla.Palette.Editor
 
         static ValidationResult ConfigSyncIssue(string message, string fix) =>
             !SorollaSettings.IsPrototype
-                ? Error(CheckCategory.ConfigSync, message, fix)
-                : Warning(CheckCategory.ConfigSync, message, fix);
+                ? Error(ReadinessChecks.ConfigSync, message, fix)
+                : Warning(ReadinessChecks.ConfigSync, message, fix);
 
         static List<ValidationResult> CheckConfigSync(Dictionary<string, object> dependencies)
         {
@@ -64,25 +64,9 @@ namespace Sorolla.Palette.Editor
                 return results;
             }
 
-            results.Add(Valid(CheckCategory.ConfigSync, "Config synced"));
+            results.Add(Valid(ReadinessChecks.ConfigSync, "Config synced"));
 
             return results;
-        }
-
-        /// <summary>
-        ///     Synchronously aligns editor mode state with the runtime config. Safe before validation and
-        ///     builds: it does not start Unity Package Manager resolution.
-        /// </summary>
-        public static bool SyncConfigState()
-        {
-            var config = Resources.Load<SorollaConfig>("SorollaConfig");
-            if (config == null)
-                return false;
-
-            bool changed = SorollaSettings.SyncFromRuntimeConfig();
-            if (changed)
-                AssetDatabase.SaveAssets();
-            return changed;
         }
 
         /// <summary>

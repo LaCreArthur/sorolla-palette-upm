@@ -86,18 +86,17 @@ Runtime/
 └── ATT/
     └── ATTBridge.cs           ← Native iOS ATT status and authorization
 
-Health/                        ← Engine-free gate model (own assembly)
-├── GateCatalog.cs             ← The 25 canonical gates + requirement predicates
-├── HealthEvaluator.cs         ← The single aggregation producing one verdict
-└── SorollaHealthModel.cs      ← Gate/observation/result vocabulary
+Health/                        ← Engine-free capability policy shared by Editor and runtime
+├── CapabilityPolicy.cs        ← Mode/package applicability rules
+└── SorollaHealthModel.cs      ← Mode and installed-module vocabulary
 
 Editor/
 ├── SorollaWindow.cs           ← Window shell (lifecycle, layout, validation run)
 ├── UI/Views/                  ← What the window renders (ReadinessSectionView, ConfigInputsView,
 │                                VendorStatus, QuickStartSection)
-├── Greenlight/                ← GreenlightAdapter (results → observations),
-│                                GreenlightEvaluator (report), GreenlightReportExport (Copy Report)
-├── SorollaSettings.cs         ← Mode persistence (EditorPrefs) + the SorollaMode enum
+├── Readiness/                 ← 24 checks + direct evaluator + one report model
+├── Greenlight/                ← Context capture and Copy Report rendering
+├── SorollaSettings.cs         ← SorollaConfig-backed mode + the SorollaMode enum
 ├── SorollaIOSPostProcessor.cs ← Xcode post-processing
 ├── ManifestManager.cs         ← manifest.json manipulation
 └── Sdk/

@@ -15,7 +15,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckFacebookPlatformConfig()
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.FacebookPlatformConfig;
+            ReadinessCheck category = ReadinessChecks.FacebookPlatformConfig;
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
                 EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)

@@ -32,13 +32,13 @@ namespace Sorolla.Palette.Editor
             if (installedModules.Count > 0 && !hasFirebaseApp)
             {
                 results.Add(Error(
-                    CheckCategory.FirebaseCoherence,
+                    ReadinessChecks.FirebaseCoherence,
                     $"Firebase modules installed without FirebaseApp:\n  {string.Join(", ", installedModules)}",
                     "Install com.google.firebase.app or remove Firebase modules"));
             }
             else if (installedModules.Count > 0)
             {
-                results.Add(Valid(CheckCategory.FirebaseCoherence, "Firebase modules OK"));
+                results.Add(Valid(ReadinessChecks.FirebaseCoherence, "Firebase modules OK"));
             }
             else if (!SorollaSettings.IsPrototype)
             {
@@ -46,7 +46,7 @@ namespace Sorolla.Palette.Editor
                 // Fix hint no longer tells you to open the window you're already inside (F6, 2026-07-21
                 // audit) - points at the actual SDK Overview row below instead.
                 results.Add(Warning(
-                    CheckCategory.FirebaseCoherence,
+                    ReadinessChecks.FirebaseCoherence,
                     "Firebase not installed (required in Full mode)",
                     "Install Firebase from the SDK Overview row below."));
             }
@@ -54,7 +54,7 @@ namespace Sorolla.Palette.Editor
             {
                 // Firebase missing in Prototype mode - optional, so this is an absence notice, not a pass:
                 // nothing was verified here.
-                results.Add(Skipped(CheckCategory.FirebaseCoherence, "Firebase not installed (optional in Prototype)"));
+                results.Add(Skipped(ReadinessChecks.FirebaseCoherence, "Firebase not installed (optional in Prototype)"));
             }
 
             return results;
@@ -88,11 +88,11 @@ namespace Sorolla.Palette.Editor
                 case BuildTarget.Android:
                     return One(hasFirebase
                         ? CheckAndroidConfig(required)
-                        : Skipped(CheckCategory.FirebaseConfigAndroid, "Firebase not installed, config check skipped"));
+                        : Skipped(ReadinessChecks.FirebaseConfigAndroid, "Firebase not installed, config check skipped"));
                 case BuildTarget.iOS:
                     return One(hasFirebase
                         ? CheckIosConfig(required)
-                        : Skipped(CheckCategory.FirebaseConfigIos, "Firebase not installed, config check skipped"));
+                        : Skipped(ReadinessChecks.FirebaseConfigIos, "Firebase not installed, config check skipped"));
                 default:
                     // Neither gate applies off-mobile, and an observation against a NotApplicable gate is a
                     // context mismatch - so say nothing rather than report a skip.
@@ -104,7 +104,7 @@ namespace Sorolla.Palette.Editor
 
         static ValidationResult CheckAndroidConfig(bool required)
         {
-            const CheckCategory category = CheckCategory.FirebaseConfigAndroid;
+            ReadinessCheck category = ReadinessChecks.FirebaseConfigAndroid;
             List<string> candidates = SdkConfigDetector.FirebaseAndroidConfigPaths();
             if (candidates.Count == 0)
                 return MissingConfig(category, required,
@@ -139,7 +139,7 @@ namespace Sorolla.Palette.Editor
 
         static ValidationResult CheckIosConfig(bool required)
         {
-            const CheckCategory category = CheckCategory.FirebaseConfigIos;
+            ReadinessCheck category = ReadinessChecks.FirebaseConfigIos;
             List<string> candidates = SdkConfigDetector.FirebaseIosConfigPaths();
             if (candidates.Count == 0)
                 return MissingConfig(category, required,
@@ -172,7 +172,7 @@ namespace Sorolla.Palette.Editor
             }
         }
 
-        static bool TryReadFile(string path, out string contents, out ValidationResult error, CheckCategory category)
+        static bool TryReadFile(string path, out string contents, out ValidationResult error, ReadinessCheck category)
         {
             error = null;
             try
@@ -189,7 +189,7 @@ namespace Sorolla.Palette.Editor
             }
         }
 
-        static ValidationResult MissingConfig(CheckCategory category, bool block, string message, string fix) =>
+        static ValidationResult MissingConfig(ReadinessCheck category, bool block, string message, string fix) =>
             block ? Error(category, message, fix) : Warning(category, message, fix);
     }
 }

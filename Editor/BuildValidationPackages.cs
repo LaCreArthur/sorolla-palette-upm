@@ -15,7 +15,7 @@ namespace Sorolla.Palette.Editor
 
             if (!SorollaSettings.IsConfigured)
             {
-                results.Add(Skipped(CheckCategory.RequiredSdks, "Mode not configured"));
+                results.Add(Skipped(ReadinessChecks.RequiredSdks, "Mode not configured"));
                 return results;
             }
 
@@ -30,14 +30,14 @@ namespace Sorolla.Palette.Editor
             {
                 string modeName = SorollaSettings.IsPrototype ? "Prototype" : "Full";
                 results.Add(Error(
-                    CheckCategory.RequiredSdks,
+                    ReadinessChecks.RequiredSdks,
                     $"Missing required SDKs for {modeName} mode:\n  {string.Join(", ", missing)}",
                     "Click Refresh to auto-install missing SDKs"));
             }
             else
             {
                 string modeName = SorollaSettings.IsPrototype ? "Prototype" : "Full";
-                results.Add(Valid(CheckCategory.RequiredSdks, $"All required SDKs present for {modeName} mode"));
+                results.Add(Valid(ReadinessChecks.RequiredSdks, $"All required SDKs present for {modeName} mode"));
             }
 
             return results;
@@ -82,7 +82,7 @@ namespace Sorolla.Palette.Editor
 
                     hasIssues = true;
                     results.Add(Warning(
-                        CheckCategory.VersionMismatches,
+                        ReadinessChecks.VersionMismatches,
                         $"Outdated version - {sdk.PackageId}\n  Minimum: {expectedTag}\n  Found: {manifestTag}",
                         "Update the package to the minimum required version"));
                     continue;
@@ -93,7 +93,7 @@ namespace Sorolla.Palette.Editor
                 {
                     hasIssues = true;
                     results.Add(Warning(
-                        CheckCategory.VersionMismatches,
+                        ReadinessChecks.VersionMismatches,
                         $"Outdated version - {sdk.PackageId}\n  Minimum: {expectedVersion}\n  Found: {manifestVersion}",
                         "Update the package to the minimum required version"));
                 }
@@ -101,7 +101,7 @@ namespace Sorolla.Palette.Editor
 
             // Add valid result if no issues found
             if (!hasIssues)
-                results.Add(Valid(CheckCategory.VersionMismatches, "All SDK versions OK"));
+                results.Add(Valid(ReadinessChecks.VersionMismatches, "All SDK versions OK"));
 
             return results;
         }
@@ -153,7 +153,7 @@ namespace Sorolla.Palette.Editor
                 // Fix hint no longer tells you to open the window you're already inside (F6, 2026-07-21
                 // audit) - points at the mode switch control in this same window's hero header instead.
                 results.Add(Warning(
-                    CheckCategory.ModeConsistency,
+                    ReadinessChecks.ModeConsistency,
                     "No SDK mode configured.",
                     "Select Prototype or Full using the mode switch above"));
                 return results;
@@ -171,7 +171,7 @@ namespace Sorolla.Palette.Editor
                 {
                     hasIssues = true;
                     results.Add(Warning(
-                        CheckCategory.ModeConsistency,
+                        ReadinessChecks.ModeConsistency,
                         $"{sdk.Name} is installed but only needed in Prototype mode (current: {modeName})",
                         "Switch to Prototype mode or remove the SDK"));
                 }
@@ -181,7 +181,7 @@ namespace Sorolla.Palette.Editor
                 {
                     hasIssues = true;
                     results.Add(Error(
-                        CheckCategory.ModeConsistency,
+                        ReadinessChecks.ModeConsistency,
                         $"{sdk.Name} is required in Full mode but not installed",
                         "Install the SDK or switch to Prototype mode"));
                 }
@@ -191,14 +191,14 @@ namespace Sorolla.Palette.Editor
                 {
                     hasIssues = true;
                     results.Add(Warning(
-                        CheckCategory.ModeConsistency,
+                        ReadinessChecks.ModeConsistency,
                         $"{sdk.Name} is installed but only needed in Full mode (current: {modeName})",
                         "Switch to Full mode or remove the SDK"));
                 }
             }
 
             if (!hasIssues)
-                results.Add(Valid(CheckCategory.ModeConsistency, $"No mode-mismatched SDKs installed ({modeName} mode)"));
+                results.Add(Valid(ReadinessChecks.ModeConsistency, $"No mode-mismatched SDKs installed ({modeName} mode)"));
 
             return results;
         }
@@ -245,7 +245,7 @@ namespace Sorolla.Palette.Editor
                     // outside that auto-repair path, removing and reinstalling it restores the registry
                     // (SdkInstaller.Install writes it).
                     results.Add(Error(
-                        CheckCategory.ScopedRegistries,
+                        ReadinessChecks.ScopedRegistries,
                         $"Missing scoped registry for {sdk.Name}\n  Required scope: {sdk.Scope}",
                         "Click Refresh (required SDKs auto-repair their registry); for an optional SDK, " +
                         "remove and reinstall it from the SDK Overview row below"));
@@ -253,7 +253,7 @@ namespace Sorolla.Palette.Editor
             }
 
             if (!hasIssues)
-                results.Add(Valid(CheckCategory.ScopedRegistries, "All registries configured"));
+                results.Add(Valid(ReadinessChecks.ScopedRegistries, "All registries configured"));
 
             return results;
         }

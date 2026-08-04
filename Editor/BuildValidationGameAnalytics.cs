@@ -27,7 +27,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckGameAnalyticsSettings()
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.GameAnalyticsSettings;
+            ReadinessCheck category = ReadinessChecks.GameAnalyticsSettings;
 
             if (!SdkDetector.IsInstalled(SdkId.GameAnalytics))
             {
@@ -100,7 +100,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckGameAnalyticsResourceWhitelist()
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.GameAnalyticsResourceWhitelist;
+            ReadinessCheck category = ReadinessChecks.GameAnalyticsResourceWhitelist;
 
             if (!SdkDetector.IsInstalled(SdkId.GameAnalytics))
             {

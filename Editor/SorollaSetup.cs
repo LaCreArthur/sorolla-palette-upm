@@ -27,7 +27,6 @@ namespace Sorolla.Palette.Editor
         {
             // This repair is idempotent and must not be hidden behind the one-time dependency gate.
             CopyLinkXmlToAssets();
-            BuildValidator.SyncConfigState();
             foreach (string fix in BuildValidator.RunSafeAutoFixes())
                 Debug.Log($"[Palette] Auto-fix: {fix}");
 

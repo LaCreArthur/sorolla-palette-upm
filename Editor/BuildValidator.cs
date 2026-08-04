@@ -12,34 +12,6 @@ namespace Sorolla.Palette.Editor
     /// </summary>
     public static partial class BuildValidator
     {
-        public enum CheckCategory
-        {
-            RequiredSdks,
-            VersionMismatches,
-            ModeConsistency,
-            ScopedRegistries,
-            FirebaseCoherence,
-            ConfigSync,
-            AndroidManifest,
-            MaxSettings,
-            AdjustSettings,
-            Edm4uSettings,
-            GradleConfig,
-            FirebaseConfigAndroid,
-            FirebaseConfigIos,
-            GameAnalyticsSettings,
-            FacebookPlatformConfig,
-            VerboseLogging,
-            DevelopmentBuild,
-            AdjustSandboxMode,
-            AndroidKeystore,
-            GradleJavaHome,
-            GameAnalyticsResourceWhitelist,
-            AddressablesContent,
-            SdkPin,
-            GameAnalyticsCredentialProbe,
-        }
-
         public enum ValidationStatus
         {
             Valid,
@@ -50,7 +22,7 @@ namespace Sorolla.Palette.Editor
             Unverifiable,
             /// <summary>The check did not run because it does not apply here (vendor not installed,
             /// wrong platform, wrong validation profile) - never a build blocker, but NOT an affirmative
-            /// pass either: renders as a neutral notice (<see cref="Greenlight.RowStatus.Info"/>),
+            /// pass either: renders as a neutral notice (a neutral informational row),
             /// never a green check, so absence/skip can't be misread as "verified healthy" (product-audit
             /// finding F5, 2026-07-21).</summary>
             Skipped,
@@ -61,51 +33,23 @@ namespace Sorolla.Palette.Editor
 
         const int RequiredJavaVersion = 17;
 
-        public static readonly Dictionary<CheckCategory, string> CheckNames = new Dictionary<CheckCategory, string>
-        {
-            [CheckCategory.RequiredSdks] = "Required SDKs",
-            [CheckCategory.VersionMismatches] = "SDK Versions",
-            [CheckCategory.ModeConsistency] = "Mode Consistency",
-            [CheckCategory.ScopedRegistries] = "Scoped Registries",
-            [CheckCategory.FirebaseCoherence] = "Firebase Coherence",
-            [CheckCategory.ConfigSync] = "Config Sync",
-            [CheckCategory.AndroidManifest] = "Android Manifest",
-            [CheckCategory.MaxSettings] = "MAX Settings",
-            [CheckCategory.AdjustSettings] = "Adjust Settings",
-            [CheckCategory.Edm4uSettings] = "EDM4U Settings",
-            [CheckCategory.GradleConfig] = "Gradle Configuration",
-            [CheckCategory.FirebaseConfigAndroid] = "Firebase Android Config",
-            [CheckCategory.FirebaseConfigIos] = "Firebase iOS Config",
-            [CheckCategory.GameAnalyticsSettings] = "GameAnalytics Platform Keys",
-            [CheckCategory.FacebookPlatformConfig] = "Facebook Platform",
-            [CheckCategory.VerboseLogging] = "Verbose Logging",
-            [CheckCategory.DevelopmentBuild] = "Development Build",
-            [CheckCategory.AdjustSandboxMode] = "Adjust Sandbox Mode",
-            [CheckCategory.AndroidKeystore] = "Android Keystore",
-            [CheckCategory.GradleJavaHome] = "Gradle Java Home",
-            [CheckCategory.GameAnalyticsResourceWhitelist] = "GameAnalytics Resource Whitelist",
-            [CheckCategory.AddressablesContent] = "Addressables Content",
-            [CheckCategory.SdkPin] = "SDK Pin",
-            [CheckCategory.GameAnalyticsCredentialProbe] = "GameAnalytics Credentials",
-        };
+        static ValidationResult Valid(ReadinessCheck check, string message, string fix = null) =>
+            new ValidationResult(ValidationStatus.Valid, message, fix, check);
 
-        static ValidationResult Valid(CheckCategory category, string message, string fix = null) =>
-            new ValidationResult(ValidationStatus.Valid, message, fix, category);
+        static ValidationResult Warning(ReadinessCheck check, string message, string fix = null) =>
+            new ValidationResult(ValidationStatus.Warning, message, fix, check);
 
-        static ValidationResult Warning(CheckCategory category, string message, string fix = null) =>
-            new ValidationResult(ValidationStatus.Warning, message, fix, category);
-
-        static ValidationResult Error(CheckCategory category, string message, string fix = null) =>
-            new ValidationResult(ValidationStatus.Error, message, fix, category);
+        static ValidationResult Error(ReadinessCheck check, string message, string fix = null) =>
+            new ValidationResult(ValidationStatus.Error, message, fix, check);
 
         /// <summary>Offline/unreachable network check - never blocks a build, never renders as a pass.</summary>
-        static ValidationResult Unverifiable(CheckCategory category, string message, string fix = null) =>
-            new ValidationResult(ValidationStatus.Unverifiable, message, fix, category);
+        static ValidationResult Unverifiable(ReadinessCheck check, string message, string fix = null) =>
+            new ValidationResult(ValidationStatus.Unverifiable, message, fix, check);
 
         /// <summary>Check does not apply here (vendor absent, wrong platform/profile) - a neutral notice,
         /// not an affirmative pass (F5).</summary>
-        static ValidationResult Skipped(CheckCategory category, string message, string fix = null) =>
-            new ValidationResult(ValidationStatus.Skipped, message, fix, category);
+        static ValidationResult Skipped(ReadinessCheck check, string message, string fix = null) =>
+            new ValidationResult(ValidationStatus.Skipped, message, fix, check);
 
         // Stashed by RunSafeAutoFixes(), consumed once by RunAllChecks() to avoid double detection.
         static AndroidManifestSanitizer.ManifestDiagnostics _lastManifestDiagnostics;
@@ -132,7 +76,7 @@ namespace Sorolla.Palette.Editor
                 var manifest = ReadManifest();
                 if (manifest == null)
                 {
-                    results.Add(Error(CheckCategory.VersionMismatches, "Failed to read Packages/manifest.json",
+                    results.Add(Error(ReadinessChecks.VersionMismatches, "Failed to read Packages/manifest.json",
                         "Restore valid JSON in Packages/manifest.json, then click Refresh"));
                     return results;
                 }
@@ -178,7 +122,7 @@ namespace Sorolla.Palette.Editor
             }
             catch (Exception e)
             {
-                results.Add(Error(CheckCategory.VersionMismatches, $"Validation failed: {e.Message}",
+                results.Add(Error(ReadinessChecks.VersionMismatches, $"Validation failed: {e.Message}",
                     "Copy Report and send this SDK validation error to Sorolla"));
             }
 

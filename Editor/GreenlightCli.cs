@@ -15,8 +15,8 @@ namespace Sorolla.Palette.Editor
     ///           -executeMethod Sorolla.Palette.Editor.GreenlightCli.Report
     ///           [-sorollaReportPath /abs/path.txt] -logFile &lt;log&gt;
     ///     </code>
-    ///     Runs the window's refresh sequence, waits (bounded) for the async GameAnalytics credential probe
-    ///     to settle so the report carries a real probe verdict instead of Pending, writes the report, then
+    ///     Runs the window's refresh sequence, waits (bounded) for the credential probes to settle so the
+    ///     report carries real probe verdicts instead of Pending, writes the report, then
     ///     exits 0. Exits 1 when the report cannot be produced. Do not pass -quit: the entry point owns the
     ///     editor lifetime because the probe needs update pumping after -executeMethod returns.
     /// </summary>
@@ -50,16 +50,18 @@ namespace Sorolla.Palette.Editor
 
         static void RunChecks()
         {
-            BuildValidator.SyncConfigState();
             BuildValidator.ResolveRequiredPackages();
-            BuildValidator.RunSafeAutoFixes();
+            foreach (string repair in BuildValidator.RunSafeAutoFixes())
+                Debug.Log($"[Palette] Greenlight CLI: auto-fixed {repair}");
             s_results = BuildValidator.RunAllChecks();
         }
 
         static void WaitForProbeThenWrite()
         {
-            bool pending = GameAnalyticsCredentialValidator.Current.State ==
-                           GameAnalyticsCredentialValidator.ProbeState.Pending;
+            bool pending =
+                GameAnalyticsCredentialValidator.Current.State ==
+                GameAnalyticsCredentialValidator.ProbeState.Pending ||
+                FacebookPlatformValidator.Current.State == FacebookPlatformValidator.ProbeState.Pending;
             if (pending && EditorApplication.timeSinceStartup < s_deadline)
                 return;
 
@@ -68,9 +70,8 @@ namespace Sorolla.Palette.Editor
             {
                 // Re-run so a settled (or timed-out) probe state reaches the report as evidence.
                 RunChecks();
-                GreenlightEvaluator.Report report = GreenlightEvaluator.Evaluate(s_results);
-                File.WriteAllText(s_path,
-                    GreenlightReportExport.ToText(report.Health, report.Fingerprint, report.Context));
+                ReadinessReport report = GreenlightEvaluator.Evaluate(s_results);
+                File.WriteAllText(s_path, GreenlightReportExport.ToText(report));
                 Debug.Log($"[Palette] Greenlight CLI: report written to {s_path}");
                 EditorApplication.Exit(0);
             }

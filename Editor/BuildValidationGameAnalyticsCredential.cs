@@ -20,7 +20,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckGameAnalyticsCredential()
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.GameAnalyticsCredentialProbe;
+            ReadinessCheck category = ReadinessChecks.GameAnalyticsCredentialProbe;
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
                 EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)

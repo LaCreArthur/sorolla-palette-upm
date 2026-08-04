@@ -24,7 +24,6 @@ namespace Sorolla.Palette.Editor
 
             try
             {
-                BuildValidator.SyncConfigState();
                 var fixes = BuildValidator.RunSafeAutoFixes();
                 foreach (string fix in fixes)
                     Debug.Log($"[Palette] Auto-fixed: {fix}");

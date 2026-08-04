@@ -21,8 +21,6 @@ namespace Sorolla.Palette.Editor
     /// </summary>
     public static class SorollaSettings
     {
-        public const string LegacyDefinePrototype = "SOROLLA_PROTOTYPE";
-        public const string LegacyDefineFull = "SOROLLA_FULL";
         const string ConfigResourcePath = "SorollaConfig";
         const string ConfigAssetPath = "Assets/Resources/SorollaConfig.asset";
 
@@ -54,15 +52,6 @@ namespace Sorolla.Palette.Editor
 
         public static bool HasRuntimeConfig => LoadRuntimeConfig() != null;
 
-        public static bool SyncFromRuntimeConfig()
-        {
-            var config = LoadRuntimeConfig();
-            if (config == null)
-                return false;
-
-            return DefineSymbols.RemoveLegacyModeDefines();
-        }
-
         /// <summary>
         ///     Set mode and apply all necessary changes
         /// </summary>
@@ -78,8 +67,6 @@ namespace Sorolla.Palette.Editor
 
             // Update runtime config asset
             UpdateRuntimeConfig(mode == SorollaMode.Prototype);
-            DefineSymbols.RemoveLegacyModeDefines();
-
             // Install required SDKs
             SdkInstaller.InstallRequiredSdks(mode == SorollaMode.Prototype);
 

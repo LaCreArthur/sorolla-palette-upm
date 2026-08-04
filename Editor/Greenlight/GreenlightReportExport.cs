@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Sorolla.Palette.Health;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,8 +8,8 @@ namespace Sorolla.Palette.Editor.Greenlight
 {
     /// <summary>
     ///     The AUDITABLE canonical report export. The Editor greenlight's flattened display rows
-    ///     drop almost everything a reviewer needs and hide inert rows; this exporter renders the FULL shared
-    ///     <see cref="HealthReport"/> instead - every row (including NotApplicable and OptionalSkipped) with
+    ///     hide inert rows; this exporter renders every readiness row, including NotApplicable and
+    ///     OptionalSkipped, with
     ///     its stable id, definition version, requirement + reason, disposition, outcome, evidence, and fix -
     ///     plus a build/context fingerprint so a pasted result can be tied to the
     ///     exact game, build, mode, platform, phase, and SDK COMMIT that produced it. One readable text
@@ -67,45 +66,51 @@ namespace Sorolla.Palette.Editor.Greenlight
 
         /// <summary>Human-readable rendering of the same canonical report - includes disposition + requirement
         /// so an inert row is not mistaken for an evaluated PASS.</summary>
-        internal static string ToText(
-            HealthReport health,
-            Fingerprint fingerprint,
-            EvaluationContext context = null)
+        internal static string ToText(ReadinessReport report)
         {
+            Fingerprint fingerprint = report?.Fingerprint ?? Fingerprint.Capture();
             var sb = new StringBuilder();
             sb.AppendLine($"Palette Greenlight Report ({Schema})");
-            sb.AppendLine($"integration: {(health?.Outcome ?? GateOutcome.Incomplete)}");
+            sb.AppendLine($"integration: {OutcomeLabel(report?.Outcome ?? ReadinessOutcome.Incomplete)}");
             sb.AppendLine($"sdk: {fingerprint.SdkVersion} (commit {fingerprint.SdkCommit}) | " +
                           $"app: {fingerprint.ApplicationId} {fingerprint.AppVersion} | " +
                           $"platform: {fingerprint.Platform} | mode: {fingerprint.Mode}");
             sb.AppendLine($"generated: {fingerprint.GeneratedAtUtc}");
             sb.AppendLine();
 
-            foreach (GateResult r in health?.Rows ?? Array.Empty<GateResult>())
+            foreach (ReadinessRow row in report?.Rows ?? Array.Empty<ReadinessRow>())
             {
                 // Never print an affirmative [Pass] for a result that was not evaluated evidence. Two cases:
                 // a deliberate skip/absence, and a gate that does not
                 // apply to the platform this report judged - the latter carries the default Pass
                 // outcome because it never voted, which is exactly why it must not read as one.
                 string outcomeLabel =
-                    r.Disposition == GateDisposition.NotApplicable ? "NotApplicable"
-                    : r.Informational ? "Skipped"
-                    : r.Outcome.ToString();
-                sb.AppendLine($"[{outcomeLabel}] {r.GateId} " +
-                              $"req={r.Requirement} disp={r.Disposition}");
-                if (!string.IsNullOrEmpty(r.RequirementReason))
-                    sb.AppendLine($"    reason: {r.RequirementReason}");
-                if (!string.IsNullOrEmpty(r.Evidence))
-                    sb.AppendLine($"    evidence: {r.Evidence}");
-                if (!string.IsNullOrEmpty(r.FixHint))
-                    sb.AppendLine($"    fix: {r.FixHint}");
+                    row.Disposition == ReadinessDisposition.NotApplicable ? "NotApplicable"
+                    : row.Informational ? "Skipped"
+                    : OutcomeLabel(row.Outcome);
+                sb.AppendLine($"[{outcomeLabel}] {row.Check.Id} " +
+                              $"req={row.Requirement} disp={row.Disposition}");
+                if (!string.IsNullOrEmpty(row.RequirementReason))
+                    sb.AppendLine($"    reason: {row.RequirementReason}");
+                if (!string.IsNullOrEmpty(row.Evidence))
+                    sb.AppendLine($"    evidence: {row.Evidence}");
+                if (!string.IsNullOrEmpty(row.Fix))
+                    sb.AppendLine($"    fix: {row.Fix}");
             }
 
-            foreach (string error in health?.ValidationErrors ?? Array.Empty<string>())
+            foreach (string error in report?.IntegrityErrors ?? Array.Empty<string>())
                 sb.AppendLine($"[INTEGRITY] {error}");
 
             return sb.ToString();
         }
 
+        static string OutcomeLabel(ReadinessOutcome outcome) => outcome switch
+        {
+            ReadinessOutcome.Fail => "Fail",
+            ReadinessOutcome.Incomplete => "Incomplete",
+            ReadinessOutcome.Warn => "PassWithCaveats",
+            ReadinessOutcome.Pass => "Pass",
+            _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Unhandled outcome."),
+        };
     }
 }

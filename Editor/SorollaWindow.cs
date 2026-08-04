@@ -65,10 +65,7 @@ namespace Sorolla.Palette.Editor
         static void AutoOpenOnLoad() => EditorApplication.delayCall += () =>
         {
             if (SorollaSettings.HasRuntimeConfig)
-            {
-                SorollaSettings.SyncFromRuntimeConfig();
                 return;
-            }
 
             if (!SorollaSettings.IsConfigured && !Application.isPlaying)
             {
@@ -277,8 +274,6 @@ namespace Sorolla.Palette.Editor
 
             _autoFixLog.Clear();
 
-            if (BuildValidator.SyncConfigState())
-                _autoFixLog.Add("Synced editor mode from SorollaConfig");
             if (BuildValidator.ResolveRequiredPackages())
                 _autoFixLog.Add("Resolving required SDK packages / registries");
             _autoFixLog.AddRange(BuildValidator.RunSafeAutoFixes());

@@ -22,7 +22,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckVerboseLogging()
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.VerboseLogging;
+            ReadinessCheck category = ReadinessChecks.VerboseLogging;
 
             var config = Resources.Load<SorollaConfig>("SorollaConfig");
             if (config == null)
@@ -58,7 +58,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckDevelopmentBuildFlag()
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.DevelopmentBuild;
+            ReadinessCheck category = ReadinessChecks.DevelopmentBuild;
 
             bool anyProfileFlagged = false;
             string profilesDir = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Library", "BuildProfiles");
@@ -100,7 +100,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckAdjustSandboxMode()
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.AdjustSandboxMode;
+            ReadinessCheck category = ReadinessChecks.AdjustSandboxMode;
 
             if (!SdkDetector.IsInstalled(SdkId.Adjust))
             {
@@ -134,7 +134,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckAndroidKeystore()
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.AndroidKeystore;
+            ReadinessCheck category = ReadinessChecks.AndroidKeystore;
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             {
@@ -167,7 +167,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckAddressablesContent(Dictionary<string, object> dependencies)
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.AddressablesContent;
+            ReadinessCheck category = ReadinessChecks.AddressablesContent;
 
             if (!dependencies.ContainsKey("com.unity.addressables"))
             {
@@ -208,7 +208,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckSdkPin(Dictionary<string, object> dependencies)
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.SdkPin;
+            ReadinessCheck category = ReadinessChecks.SdkPin;
 
             if (!dependencies.TryGetValue("com.sorolla.sdk", out object sdkRefObj))
             {

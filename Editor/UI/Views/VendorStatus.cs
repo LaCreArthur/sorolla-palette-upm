@@ -60,15 +60,15 @@ namespace Sorolla.Palette.Editor.UI
 
         /// <summary>Dispatches to each vendor's own computation; null for the groups with no such signal
         /// (Build &amp; Project, Device &amp; QA), whose header derives purely from their visible rows.</summary>
-        internal VendorStatus For(GreenlightAdapter.VendorGroup id) => id switch
+        internal VendorStatus For(ReadinessGroup id) => id switch
         {
-            GreenlightAdapter.VendorGroup.GameAnalytics => GameAnalytics(),
-            GreenlightAdapter.VendorGroup.Facebook => Generic(
+            ReadinessGroup.GameAnalytics => GameAnalytics(),
+            ReadinessGroup.Facebook => Generic(
                 SdkRegistry.All[SdkId.Facebook], SdkConfigDetector.GetFacebookStatus(), "Set App ID",
                 SdkConfigDetector.OpenFacebookSettings, isRequired: true),
-            GreenlightAdapter.VendorGroup.Firebase => Firebase(),
-            GreenlightAdapter.VendorGroup.AppLovinMax => Max(),
-            GreenlightAdapter.VendorGroup.Adjust => Generic(
+            ReadinessGroup.Firebase => Firebase(),
+            ReadinessGroup.AppLovinMax => Max(),
+            ReadinessGroup.Adjust => Generic(
                 SdkRegistry.All[SdkId.Adjust], SdkConfigDetector.GetAdjustStatus(_config), "Enter app token below",
                 () => _focusField(_inputs.AdjustAppTokenField), isRequired: !SorollaSettings.IsPrototype),
             _ => null,

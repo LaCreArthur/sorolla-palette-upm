@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.1] - 2026-08-04
+
+### Changed
+
+- Simplified Launch Readiness to one direct model from validation check to report row. Removed the
+  duplicate gate catalog, adapter, evaluator result, and display-status layers without changing the
+  24 stable gate ids or copied report schema.
+- The command-line report now waits for both GameAnalytics and Facebook credential probes and logs
+  every automatic project repair it performs.
+- Removed permanent cleanup machinery for pre-v4 mode define symbols. `SorollaConfig.asset` remains
+  the sole mode source of truth.
+
 ## [4.0.0] - 2026-08-04
 
 Self-serve integration health. The Palette window now produces one Launch Readiness verdict for the

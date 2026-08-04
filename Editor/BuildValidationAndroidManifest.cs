@@ -28,7 +28,7 @@ namespace Sorolla.Palette.Editor
                 {
                     string sdkName = SdkRegistry.All[sdkId].Name;
                     results.Add(Error(
-                        CheckCategory.AndroidManifest,
+                        ReadinessChecks.AndroidManifest,
                         $"AndroidManifest.xml has {sdkName} entries but SDK is not installed!\n" +
                         $"  Found patterns: {string.Join(", ", entries)}\n" +
                         "  This WILL crash at runtime.",
@@ -40,7 +40,7 @@ namespace Sorolla.Palette.Editor
             {
                 hasIssues = true;
                 results.Add(Error(
-                    CheckCategory.AndroidManifest,
+                    ReadinessChecks.AndroidManifest,
                     "AndroidManifest.xml has duplicate activity declarations!\n" +
                     $"  Duplicates: {string.Join(", ", duplicates)}\n" +
                     "  This WILL cause build failures.",
@@ -51,7 +51,7 @@ namespace Sorolla.Palette.Editor
             {
                 hasIssues = true;
                 results.Add(Error(
-                    CheckCategory.AndroidManifest,
+                    ReadinessChecks.AndroidManifest,
                     "AndroidManifest.xml has wrong main activity!\n" +
                     $"  Found: {wrongActivity}\n" +
                     $"  Expected: {AndroidManifestSanitizer.GetExpectedMainActivity()}\n" +
@@ -63,7 +63,7 @@ namespace Sorolla.Palette.Editor
             {
                 hasIssues = true;
                 results.Add(Error(
-                    CheckCategory.AndroidManifest,
+                    ReadinessChecks.AndroidManifest,
                     "AndroidManifest.xml activity theme issue!\n" +
                     $"  {themeMismatch}\n" +
                     "  This WILL cause a Gradle merge conflict on build.",
@@ -74,14 +74,14 @@ namespace Sorolla.Palette.Editor
             {
                 hasIssues = true;
                 results.Add(Error(
-                    CheckCategory.AndroidManifest,
+                    ReadinessChecks.AndroidManifest,
                     $"LauncherManifest.xml issue: {launcherIssue}\n" +
                     "  The app will install but fail to launch.",
                     "Click Refresh above and re-check."));
             }
 
             if (!hasIssues)
-                results.Add(Valid(CheckCategory.AndroidManifest, "Manifest clean"));
+                results.Add(Valid(ReadinessChecks.AndroidManifest, "Manifest clean"));
 
             return results;
         }

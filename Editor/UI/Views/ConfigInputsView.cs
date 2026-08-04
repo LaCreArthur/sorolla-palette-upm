@@ -36,7 +36,7 @@ namespace Sorolla.Palette.Editor.UI
         /// <summary>Inputs for one group, or an empty list for the groups with nothing to configure
         /// (GameAnalytics / Facebook / Firebase keep their settings in their own vendor assets, and
         /// duplicating them here would be a second source of truth).</summary>
-        internal List<VisualElement> BuildFor(GreenlightAdapter.VendorGroup group)
+        internal List<VisualElement> BuildFor(ReadinessGroup group)
         {
             var inputs = new List<VisualElement>();
 
@@ -46,7 +46,7 @@ namespace Sorolla.Palette.Editor.UI
             // Create button that would take the same failing path again.
             if (_config == null || SerializedConfig == null)
             {
-                if (group == GreenlightAdapter.VendorGroup.BuildAndProject)
+                if (group == ReadinessGroup.BuildAndProject)
                     inputs.Add(new HelpBox(
                         "Assets/Resources/SorollaConfig.asset could not be created. The SDK reads that exact " +
                         "path at runtime - check that Assets/Resources is writable and nothing else occupies it.",
@@ -59,7 +59,7 @@ namespace Sorolla.Palette.Editor.UI
                 // MAX ad units. ValidatedField applies at the LEAF level (each Android/iOS string), not to
                 // the PlatformAdUnitId struct: a leaf binds a real SerializedProperty, which avoids the
                 // double-label and [Header]-decorator problems a struct-level PropertyField hits.
-                case GreenlightAdapter.VendorGroup.AppLovinMax:
+                case ReadinessGroup.AppLovinMax:
                     if (SdkDetector.IsInstalled(SdkId.AppLovinMAX))
                     {
                         inputs.Add(AdUnitFoldout("Rewarded", "rewardedAdUnit"));
@@ -74,7 +74,7 @@ namespace Sorolla.Palette.Editor.UI
                 // build) - Invalid state + subtext while unresolved, no subtext once valid. Sandbox Mode is
                 // deliberately NOT here: its checkbox renders under its own check row, beside the warning
                 // that explains it (see SandboxModeToggle).
-                case GreenlightAdapter.VendorGroup.Adjust:
+                case ReadinessGroup.Adjust:
                     if (!SorollaSettings.IsPrototype && SdkDetector.IsInstalled(SdkId.Adjust))
                     {
                         AdjustAppTokenField = ValidatedField.CreateBound(
@@ -95,7 +95,7 @@ namespace Sorolla.Palette.Editor.UI
                 // that clears it are never in different groups. Toggle rather than PropertyField: a
                 // PropertyField would render verboseLogging's own [Header("Logging")] as a stray section
                 // line above the checkbox.
-                case GreenlightAdapter.VendorGroup.BuildAndProject:
+                case ReadinessGroup.BuildAndProject:
                     inputs.Add(new Toggle("Verbose Logging")
                     {
                         bindingPath = "verboseLogging",

@@ -4,19 +4,17 @@ namespace Sorolla.Palette.Editor
     {
         public class ValidationResult
         {
-            public CheckCategory Category;
+            internal ReadinessCheck Check;
             public string Fix;
             public string Message;
             public ValidationStatus Status;
 
-            /// <summary>Category is required, never defaulted: it routes the result to its gate and its
-            /// vendor group, so an omitted one used to silently file the result under SDK Versions.</summary>
-            public ValidationResult(ValidationStatus status, string message, string fix, CheckCategory category)
+            internal ValidationResult(ValidationStatus status, string message, string fix, ReadinessCheck check)
             {
                 Status = status;
                 Message = message;
                 Fix = fix;
-                Category = category;
+                Check = check;
             }
         }
     }

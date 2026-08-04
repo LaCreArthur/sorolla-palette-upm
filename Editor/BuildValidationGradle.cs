@@ -18,7 +18,7 @@ namespace Sorolla.Palette.Editor
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             {
-                results.Add(Skipped(CheckCategory.GradleConfig, "Gradle checks skipped (not Android)"));
+                results.Add(Skipped(ReadinessChecks.GradleConfig, "Gradle checks skipped (not Android)"));
                 return results;
             }
 
@@ -34,7 +34,7 @@ namespace Sorolla.Palette.Editor
                     hasIssues = true;
                     string fileName = Path.GetFileName(templatePath);
                     results.Add(Error(
-                        CheckCategory.GradleConfig,
+                        ReadinessChecks.GradleConfig,
                         $"{fileName} has Java 11 compileOptions!\n" +
                         $"  Firebase 23.x, AppLovin MAX 13.x, and Kotlin 2.x require Java {RequiredJavaVersion}.\n" +
                         $"  Change sourceCompatibility and targetCompatibility to VERSION_{RequiredJavaVersion}.",
@@ -50,14 +50,14 @@ namespace Sorolla.Palette.Editor
             {
                 hasIssues = true;
                 results.Add(Warning(
-                    CheckCategory.GradleConfig,
+                    ReadinessChecks.GradleConfig,
                     "gradleTemplate.properties not found.\n" +
                     "  Enable Custom Gradle Properties Template in Player Settings > Publishing Settings.",
                     "Enable Custom Gradle Properties Template"));
             }
 
             if (!hasIssues)
-                results.Add(Valid(CheckCategory.GradleConfig, "Gradle config OK"));
+                results.Add(Valid(ReadinessChecks.GradleConfig, "Gradle config OK"));
 
             return results;
         }
@@ -70,7 +70,7 @@ namespace Sorolla.Palette.Editor
         static List<ValidationResult> CheckGradleJavaHome()
         {
             var results = new List<ValidationResult>();
-            const CheckCategory category = CheckCategory.GradleJavaHome;
+            ReadinessCheck category = ReadinessChecks.GradleJavaHome;
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             {
@@ -163,7 +163,7 @@ namespace Sorolla.Palette.Editor
 
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             {
-                results.Add(Skipped(CheckCategory.GradleConfig, "R8/AGP checks skipped (not Android)"));
+                results.Add(Skipped(ReadinessChecks.GradleConfig, "R8/AGP checks skipped (not Android)"));
                 return results;
             }
 
@@ -178,7 +178,7 @@ namespace Sorolla.Palette.Editor
 #if UNITY_6000_0_OR_NEWER
                     hasIssues = true;
                     results.Add(Error(
-                        CheckCategory.GradleConfig,
+                        ReadinessChecks.GradleConfig,
                         "baseProjectTemplate.gradle has an R8 version pin!\n" +
                         "  AGP 8.x bundles modern R8 that handles Kotlin 2.0 natively.\n" +
                         "  The pin causes NoSuchMethodError during dexing.\n" +
@@ -198,7 +198,7 @@ namespace Sorolla.Palette.Editor
 #if UNITY_6000_0_OR_NEWER
                     hasIssues = true;
                     results.Add(Warning(
-                        CheckCategory.GradleConfig,
+                        ReadinessChecks.GradleConfig,
                         "mainTemplate.gradle forces Kotlin stdlib to an older version.\n" +
                         "  AGP 8.x handles Kotlin 2.0 metadata natively.\n" +
                         "  Consider removing the resolutionStrategy block.",
@@ -209,7 +209,7 @@ namespace Sorolla.Palette.Editor
             }
 
             if (!hasIssues)
-                results.Add(Valid(CheckCategory.GradleConfig, "R8/AGP config OK"));
+                results.Add(Valid(ReadinessChecks.GradleConfig, "R8/AGP config OK"));
 
             return results;
         }

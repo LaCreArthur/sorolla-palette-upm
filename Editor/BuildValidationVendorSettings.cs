@@ -21,7 +21,7 @@ namespace Sorolla.Palette.Editor
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android &&
                 EditorUserBuildSettings.activeBuildTarget != BuildTarget.iOS)
             {
-                results.Add(Skipped(CheckCategory.MaxSettings,
+                results.Add(Skipped(ReadinessChecks.MaxSettings,
                     "Select Android or iOS to check AppLovin MAX settings"));
                 return results;
             }
@@ -32,7 +32,7 @@ namespace Sorolla.Palette.Editor
             if (!MaxSettingsSanitizer.IsSdkKeyConfigured())
             {
                 results.Add(Error(
-                    CheckCategory.MaxSettings,
+                    ReadinessChecks.MaxSettings,
                     "AppLovin MAX SDK key auto-sync failed.\n" +
                     "  The shared publisher key could not be written to AppLovinSettings.",
                     "Reopen Unity or click Refresh above; report this if it persists."));
@@ -42,7 +42,7 @@ namespace Sorolla.Palette.Editor
             if (!MaxSettingsSanitizer.IsConsentFlowConfigured())
             {
                 results.Add(Error(
-                    CheckCategory.MaxSettings,
+                    ReadinessChecks.MaxSettings,
                     "AppLovin consent flow auto-sync failed.\n" +
                     "  The shared privacy policy URL could not be written to AppLovin internal settings.",
                     "Reopen Unity or click Refresh above; report this if it persists."));
@@ -77,16 +77,16 @@ namespace Sorolla.Palette.Editor
                 // audit) - the MAX Ad Units fields are in this same window's AppLovin MAX group,
                 // below this row (vendor-consolidation cycle, 2026-07-21 15:35: SDK Keys is gone).
                 results.Add(Error(
-                    CheckCategory.MaxSettings,
+                    ReadinessChecks.MaxSettings,
                     $"MAX ad unit IDs missing for {platformName} in SorollaConfig: {string.Join(", ", missing)}.\n" +
                     "  Every ad call for a missing format fails to load; banner units are not checked (optional format).",
                     $"Enter the AppLovin MAX ad unit IDs for {platformName} below"));
                 return results;
             }
 
-            results.Add(Valid(CheckCategory.MaxSettings, "MAX settings synced"));
+            results.Add(Valid(ReadinessChecks.MaxSettings, "MAX settings synced"));
 #else
-            results.Add(Skipped(CheckCategory.MaxSettings, "MAX not installed"));
+            results.Add(Skipped(ReadinessChecks.MaxSettings, "MAX not installed"));
 #endif
 
             return results;
@@ -111,14 +111,14 @@ namespace Sorolla.Palette.Editor
             // Only check in Full mode when Adjust is installed
             if (!SorollaSettings.IsConfigured || SorollaSettings.IsPrototype)
             {
-                results.Add(Skipped(CheckCategory.AdjustSettings, "Adjust not required"));
+                results.Add(Skipped(ReadinessChecks.AdjustSettings, "Adjust not required"));
                 return results;
             }
 
             if (!SdkDetector.IsInstalled(SdkId.Adjust))
             {
                 // Installation is checked by CheckRequiredSdks - just skip config check here
-                results.Add(Skipped(CheckCategory.AdjustSettings, "Adjust not installed"));
+                results.Add(Skipped(ReadinessChecks.AdjustSettings, "Adjust not installed"));
                 return results;
             }
 
@@ -126,7 +126,7 @@ namespace Sorolla.Palette.Editor
             if (config == null)
             {
                 results.Add(Warning(
-                    CheckCategory.AdjustSettings,
+                    ReadinessChecks.AdjustSettings,
                     "SorollaConfig not found - cannot validate Adjust app token",
                     "Create config via Assets > Create > Palette > Config"));
                 return results;
@@ -139,7 +139,7 @@ namespace Sorolla.Palette.Editor
                 // audit) - the Adjust App Token field is in this same window's Adjust group, below this
                 // row (vendor-consolidation cycle, 2026-07-21 15:35: SDK Keys is gone).
                 results.Add(Error(
-                    CheckCategory.AdjustSettings,
+                    ReadinessChecks.AdjustSettings,
                     "Adjust app token is not configured!\n" +
                     "  Attribution tracking will not work without a valid app token.\n" +
                     "  Enter your Adjust app token below.",
@@ -147,7 +147,7 @@ namespace Sorolla.Palette.Editor
             }
             else
             {
-                results.Add(Valid(CheckCategory.AdjustSettings, "Adjust app token OK"));
+                results.Add(Valid(ReadinessChecks.AdjustSettings, "Adjust app token OK"));
             }
 
             // The purchase event token was validated NOWHERE before 2026-07-22, so a game could wire IAP,
@@ -157,7 +157,7 @@ namespace Sorolla.Palette.Editor
             if (dependencies.ContainsKey("com.unity.purchasing") && string.IsNullOrEmpty(config.adjustPurchaseEventToken))
             {
                 results.Add(Warning(
-                    CheckCategory.AdjustSettings,
+                    ReadinessChecks.AdjustSettings,
                     "Unity IAP is installed but SorollaConfig has no Adjust purchase event token.\n" +
                     "  Purchases will track everywhere else and send no revenue event to Adjust.",
                     "Adjust dashboard > this app > All Settings > Events: add a revenue/\"Purchase\" event and paste its 6-character event token below"));
@@ -180,7 +180,7 @@ namespace Sorolla.Palette.Editor
             {
                 hasIssues = true;
                 results.AddRange(duplicates.Select(dup => Warning(
-                    CheckCategory.Edm4uSettings,
+                    ReadinessChecks.Edm4uSettings,
                     dup,
                     "Remove duplicate EDM4U from Assets/ folder")));
             }
@@ -194,7 +194,7 @@ namespace Sorolla.Palette.Editor
             }
 
             if (!hasIssues)
-                results.Add(Valid(CheckCategory.Edm4uSettings, "EDM4U settings OK"));
+                results.Add(Valid(ReadinessChecks.Edm4uSettings, "EDM4U settings OK"));
 
             return results;
         }
@@ -225,7 +225,7 @@ namespace Sorolla.Palette.Editor
                 if (mainTemplateProp != null && !(bool)mainTemplateProp.GetValue(null))
                 {
                     return Warning(
-                        CheckCategory.Edm4uSettings,
+                        ReadinessChecks.Edm4uSettings,
                         "EDM4U not configured for Gradle templates.\n" +
                         "  This causes Java 17+ compatibility errors on Android resolve.\n" +
                         "  Unity 6+ requires Gradle template mode.",
