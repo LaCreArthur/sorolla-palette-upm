@@ -2,16 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [4.0.0] - Unreleased
+## [4.0.0] - 2026-08-04
 
 Self-serve integration health. The Palette window now produces one Launch Readiness verdict for the
 game in front of it, backed by a canonical gate catalog and a single evaluator, and a copyable
 report that carries every row plus the SDK commit of the checkout it was generated from.
-
-This line is unreleased until the `v4.0.0` tag. The version string stays `4.0.0` across the whole
-development line, so it cannot identify a development commit: use the SDK commit printed in the
-report. Do not pin a game to the development checkout, and do not treat a `HEALTHY` badge as a
-release verdict.
 
 ### Added
 
