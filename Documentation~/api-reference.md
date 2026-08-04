@@ -725,7 +725,7 @@ Full = Core + MAX + Adjust + Firebase. Set via the Configuration window.
 
 ```csharp title="Declaration"
 [Header("Mode")]
-[Tooltip("Prototype = Core SDKs only | Full = Core SDKs + MAX + Adjust")]
+[Tooltip("Prototype = GameAnalytics + Facebook | Full = Prototype + Firebase + MAX + Adjust")]
 public bool isPrototypeMode
 ```
 #### rewardedAdUnit
@@ -993,3 +993,4 @@ Other = 6
 ```
 
 ---
+
