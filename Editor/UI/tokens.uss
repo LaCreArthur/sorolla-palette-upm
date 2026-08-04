@@ -171,7 +171,7 @@
     -unity-font-style: bold;
     /* Sizes to its label instead of stretching to the parent's width (F13.7, 2026-07-21 audit): every
        per-row container here is a plain (column-flex, align-items: stretch by default) VisualElement, so
-       without this a row-level chip (Connect Device, Attest, Switch Mode) rendered as a full-width gray
+       without this a row-level chip (Switch Mode) rendered as a full-width gray
        bar reading as a section separator, not a button. No effect on the header's row-direction actions
        row, which never stretched its children on the cross (vertical) axis anyway. */
     align-self: flex-start;

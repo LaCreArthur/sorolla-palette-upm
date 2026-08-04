@@ -106,10 +106,6 @@ namespace Sorolla.Palette.Editor
             gradle.Contains("VERSION_11") &&
             (gradle.Contains("sourceCompatibility") || gradle.Contains("targetCompatibility"));
 
-        internal static bool MissingGradleJavaHome(string gradleProperties) =>
-            string.IsNullOrEmpty(gradleProperties) ||
-            !gradleProperties.Contains("org.gradle.java.home");
-
         /// <summary>
         ///     Remove the buildscript { ... } block from a Gradle file using brace matching.
         ///     Returns the original string if no buildscript block is found.

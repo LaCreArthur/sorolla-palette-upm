@@ -43,12 +43,12 @@ namespace Sorolla.Palette.Editor
 
                     // This sync raises installed packages UP to the registry floor when an SDK
                     // upgrade bumps versions; it must NEVER downgrade a user's manual upgrade (e.g.
-                    // MAX bumped via MaxVersionChecker - B-4). Semver-pinned packages are overwritten
-                    // only when the registry version is newer than what is installed. URL-pinned
-                    // packages (git refs) are not semver-comparable, so the registry ref stays
-                    // authoritative and exact-match is enforced.
+                    // a MAX version the developer bumped by hand - B-4). Semver-pinned packages are
+                    // overwritten only when the registry version is newer than what is installed.
+                    // URL-pinned packages (git refs) are not semver-comparable, so the registry ref
+                    // stays authoritative and exact-match is enforced.
                     bool semverPinned = string.IsNullOrEmpty(sdk.InstallUrl);
-                    if (semverPinned && !MaxVersionChecker.IsNewerVersion(expected, current))
+                    if (semverPinned && !IsNewerVersion(expected, current))
                         continue; // installed is same-or-newer; keep the user's pick
 
                     updates[sdk.PackageId] = expected;
@@ -68,6 +68,35 @@ namespace Sorolla.Palette.Editor
                 Debug.Log($"[Palette] Updated {updates.Count} package(s) to latest versions.");
                 return true; // Signal manifest was modified → triggers save + UPM resolve
             });
+        }
+
+        /// <summary>
+        ///     Compare semver versions. Returns true if latest > installed.
+        /// </summary>
+        static bool IsNewerVersion(string latest, string installed)
+        {
+            try
+            {
+                var latestParts = latest.Split('.');
+                var installedParts = installed.Split('.');
+
+                for (int i = 0; i < Mathf.Min(latestParts.Length, installedParts.Length); i++)
+                {
+                    if (int.TryParse(latestParts[i], out var latestNum) &&
+                        int.TryParse(installedParts[i], out var installedNum))
+                    {
+                        if (latestNum > installedNum) return true;
+                        if (latestNum < installedNum) return false;
+                    }
+                }
+
+                // If all compared parts equal, longer version is newer
+                return latestParts.Length > installedParts.Length;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

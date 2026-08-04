@@ -196,9 +196,8 @@ namespace Sorolla.Palette.Editor.UI
             }
         }
 
-        /// <summary>The window-wide actions (Refresh / Connect Device / Copy Report), fixed in the header
-        /// below the hero - one home for global actions, no in-content duplicates. Repopulated on every
-        /// refresh so the Connect button's state tracks the snapshot phase.</summary>
+        /// <summary>The window-wide actions (Refresh / Copy Report), fixed in the header
+        /// below the hero - one home for global actions, no in-content duplicates.</summary>
         void RefreshHeaderActions(ReadinessReport report)
         {
             if (_headerActionsHost == null) return;
@@ -369,9 +368,6 @@ namespace Sorolla.Palette.Editor.UI
             if (row.Check.Id == ReadinessChecks.ModeConsistency.Id && !isPass)
                 container.Add(RowAction("Switch Mode", _onModeSwitch, enabled: !EditorApplication.isPlaying));
 
-            // Report Integrity is the synthetic row, and the ONLY row with no gate id (a schema/contract
-            // error rather than a gate result). Its fix says "report it to Sorolla" with no channel to do
-            // so, so point it straight at the issue tracker.
             return container;
         }
 

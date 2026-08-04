@@ -95,15 +95,6 @@ plugins {
             Assert.AreEqual(expected, BuildValidator.HasJava11CompileOptions(gradle));
         }
 
-        [TestCase("org.gradle.jvmargs=-Xmx4096m", true)]
-        [TestCase("", true)]
-        [TestCase(null, true)]
-        [TestCase("org.gradle.java.home=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home", false)]
-        public void MissingGradleJavaHome_DetectsAbsentProperty(string properties, bool expected)
-        {
-            Assert.AreEqual(expected, BuildValidator.MissingGradleJavaHome(properties));
-        }
-
         [TestCase("classpath \"com.android.tools:r8:8.1.56\"", true)]
         [TestCase("implementation \"com.android.tools.build:gradle:8.10.0\"", false)]
         [TestCase("", false)]
