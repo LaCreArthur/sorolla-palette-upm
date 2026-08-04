@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: unity-refs
-          key: unity-managed-6000.4.0f1-base-3.2.2
+          key: unity-managed-6000.4.0f1-base-3.2.2-ugui
 
       - name: Extract Unity managed DLLs from game-ci image
         if: steps.cache-unity-refs.outputs.cache-hit != 'true'
@@ -48,6 +48,16 @@ jobs:
           mkdir -p unity-refs/Unity.app/Contents/Resources/Scripting/Managed/UnityEngine
           docker cp "$CID:/opt/unity/Editor/Data/Managed/UnityEngine/." \
             unity-refs/Unity.app/Contents/Resources/Scripting/Managed/UnityEngine/
+          # uGUI (UnityEngine.EventSystems) is a built-in package, not a Managed core module:
+          # locate the editor's precompiled copy and place it beside the Managed DLLs, same as
+          # docs-check.yml. Fail loud if absent.
+          UGUI_IN_IMAGE=$(docker run --rm "$IMAGE" sh -c "find /opt/unity -name UnityEngine.UI.dll 2>/dev/null | head -1")
+          if [ -z "$UGUI_IN_IMAGE" ]; then
+            echo "::error::UnityEngine.UI.dll (uGUI) not found in $IMAGE."
+            docker rm "$CID" >/dev/null
+            exit 1
+          fi
+          docker cp "$CID:$UGUI_IN_IMAGE" unity-refs/Unity.app/Contents/Resources/Scripting/Managed/UnityEngine/UnityEngine.UI.dll
           docker rm "$CID"
           test -f unity-refs/Unity.app/Contents/Resources/Scripting/Managed/UnityEngine/UnityEngine.dll
           test -f unity-refs/Unity.app/Contents/Resources/Scripting/Managed/UnityEngine/UnityEngine.CoreModule.dll
