@@ -102,10 +102,8 @@ namespace Sorolla.Palette
             string facebookRowDetail = AdapterRowDetail(snapshot.FacebookOutcome, facebookDetail);
             if (facebookRowSeverity == SorollaDiagnosticSeverity.Fail)
             {
-                // fb-failure-triage.md rung 1: DiagnoseProbeFailure already wrote "{platform} not
-                // registered on FB app {appId}" into the detail when Graph confirmed the platform
-                // gap (the boulder-evolution cause). Any other Fail detail is a genuine SDK-can't-see
-                // boundary (rungs 1.5-5 of the ladder) - honestly named as unknown, not guessed.
+                // The runtime Graph probe writes concrete credential/platform failures into detail.
+                // Classify those before the generic ladder so the row gives the concrete fix.
                 var diagnosis = FacebookFailureDiagnosis(facebookRowDetail);
                 AddDiagnosed(rows, "SDKs", "Facebook", facebookRowSeverity, facebookRowDetail, diagnosis);
             }
@@ -790,6 +788,12 @@ namespace Sorolla.Palette
 
         static (string why, string signal, string fix) FacebookFailureDiagnosis(string detail)
         {
+            if (detail != null && detail.Contains("has been deleted"))
+                return FacebookDeletedAppDiagnosis(detail);
+            if (detail != null && detail.Contains("Client Token does not match"))
+                return FacebookClientTokenMismatchDiagnosis(detail);
+            if (detail != null && detail.Contains("App ID") && detail.Contains("is invalid"))
+                return FacebookInvalidAppIdDiagnosis(detail);
             if (detail != null && detail.Contains("not registered on FB app"))
                 return FacebookPlatformNotRegisteredDiagnosis(detail);
             if (IsTlsCertificateFailure(detail))

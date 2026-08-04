@@ -84,6 +84,10 @@ release verdict.
 
 ### Changed
 
+- **Actionable Facebook runtime failures**: the boot-time Graph probe now preserves Meta's error
+  response instead of reducing it to `HTTP 400`, distinguishes a deleted app, mismatched Client
+  Token, invalid App ID, and missing active-platform registration, and gives the concrete fix in
+  both the device log and Vitals. Credential and platform validation now share one Graph request.
 - **An unconfigured GameAnalytics resource whitelist is optional, not a warning.** GameAnalytics is
   the secondary analytics surface and economy events reach Firebase regardless, so a game that never
   opted in no longer shows a warning row. A whitelist that IS filled in but does not match what

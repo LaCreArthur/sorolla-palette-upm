@@ -35,6 +35,10 @@ The Graph API returns the same `errorCode: 190` for three different underlying p
 
 Whichever cause, the practical effect is the same: Facebook init reports `AuthError`, and analytics + attribution silently stop reaching Facebook — no crash, no loud error at runtime.
 
+The runtime probe preserves Meta's Graph error body rather than reporting only the HTTP status. Its
+device log and Vitals row distinguish a deleted app, a mismatched Client Token, an invalid App ID,
+and a missing active-platform registration, and name the corresponding dashboard fix.
+
 ## What the verdict shows when it's wrong
 
 | Row | State | Meaning |

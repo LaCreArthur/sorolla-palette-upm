@@ -88,11 +88,21 @@ namespace Sorolla.Palette
 
         // ---- Facebook (fb-failure-triage.md ladder rung 1) ----
 
-        // The boulder-evolution case: DiagnoseProbeFailure already asks Graph whether the current
-        // platform is registered and, when it isn't, writes "{platform} not registered on FB app
-        // {appId}" into the row's Detail (FacebookAdapter.cs OnPlatformDiagnosisProbe). That string
-        // already carries everything WHY needs; this just re-shapes it into the three-part contract
-        // instead of re-deriving the fact.
+        internal static (string why, string signal, string fix) FacebookDeletedAppDiagnosis(string detail) => (
+            detail,
+            "Meta rejects the app access token with OAuth error 190, so Facebook attribution cannot reach the deleted app.",
+            "Create a replacement Meta app, add this build's Android/iOS platform, then update the App ID and Client Token in Facebook Settings and rebuild.");
+
+        internal static (string why, string signal, string fix) FacebookClientTokenMismatchDiagnosis(string detail) => (
+            detail,
+            "Meta rejects the App ID and Client Token pair with OAuth error 190.",
+            "Meta App Dashboard -> Settings -> Advanced -> Client Token: copy the token for this exact app into Facebook Settings, then rebuild.");
+
+        internal static (string why, string signal, string fix) FacebookInvalidAppIdDiagnosis(string detail) => (
+            detail,
+            "Meta cannot resolve the configured App ID and rejects the probe with OAuth error 190.",
+            "Meta App Dashboard -> Settings -> Basic -> App ID: copy the exact App ID into Facebook Settings, then rebuild.");
+
         internal static (string why, string signal, string fix) FacebookPlatformNotRegisteredDiagnosis(string platformNotRegisteredDetail)
         {
             string why = $"{platformNotRegisteredDetail} (Facebook Graph API's supported_platforms list for this app does not include the platform this build is running on).";

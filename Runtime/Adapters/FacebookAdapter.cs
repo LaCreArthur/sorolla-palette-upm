@@ -1,8 +1,9 @@
-#if SOROLLA_FACEBOOK_ENABLED
 using System;
+using UnityEngine;
+
+#if SOROLLA_FACEBOOK_ENABLED
 using System.Collections.Generic;
 using Facebook.Unity;
-using UnityEngine;
 
 namespace Sorolla.Palette.Adapters
 {
@@ -103,7 +104,7 @@ namespace Sorolla.Palette.Adapters
                 {
                     { "access_token", appId + "|" + clientToken },
                 };
-                FB.API("/" + appId + "?fields=id", HttpMethod.GET, OnValidationProbe, formData);
+                FB.API("/" + appId + "?fields=id,supported_platforms", HttpMethod.GET, OnValidationProbe, formData);
             }
             catch (Exception e)
             {
@@ -125,7 +126,8 @@ namespace Sorolla.Palette.Adapters
 
             if (!string.IsNullOrEmpty(result.Error))
             {
-                DiagnoseProbeFailure(SafeDetail(result.Error));
+                ReportProbeFailure(FacebookProbeFailure.Detail(
+                    NormalizeAppId(FB.AppId), result.Error, result.RawResult));
                 return;
             }
 
@@ -140,57 +142,23 @@ namespace Sorolla.Palette.Adapters
                 return;
             }
 
-            AdapterDiagnostics.Record(AdapterDiagnosticVendor.Facebook, AdapterDiagnosticStatus.Ready,
-                "validated", "Initialized and app credentials validated");
-        }
-
-        /// <summary>
-        ///     A failed validation probe surfaces the vendor's raw transport error by default (often a
-        ///     misleading SSL/connection message). Before logging it, ask the Graph API whether the
-        ///     current platform is even registered on the FB app - that is the actual root cause of the
-        ///     Boulder Evolution incident (FB app provisioned Android-only, iOS rejected every call).
-        /// </summary>
-        private static void DiagnoseProbeFailure(string vendorDetail)
-        {
-            string appId = NormalizeAppId(FB.AppId);
-            string clientToken = FB.ClientToken;
-
-            if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(clientToken))
+            if (!TryCurrentPlatformRegistration(result.RawResult, out bool platformRegistered))
             {
-                ReportProbeFailure(vendorDetail);
+                const string detail = "Validation response did not include a readable supported_platforms list";
+                PaletteLog.Warning($"{Tag} Validation warning: {detail}");
+                AdapterDiagnostics.Record(AdapterDiagnosticVendor.Facebook, AdapterDiagnosticStatus.Warning,
+                    "platform_unverified", detail);
                 return;
             }
 
-            try
+            if (!platformRegistered)
             {
-                var formData = new Dictionary<string, string>
-                {
-                    { "access_token", appId + "|" + clientToken },
-                };
-                FB.API("/" + appId + "?fields=supported_platforms", HttpMethod.GET,
-                    platformResult => OnPlatformDiagnosisProbe(platformResult, vendorDetail), formData);
-            }
-            catch (Exception)
-            {
-                ReportProbeFailure(vendorDetail);
-            }
-        }
-
-        private static void OnPlatformDiagnosisProbe(IGraphResult platformResult, string vendorDetail)
-        {
-            if (platformResult != null && string.IsNullOrEmpty(platformResult.Error)
-                && !string.IsNullOrEmpty(platformResult.RawResult))
-            {
-                var parsed = JsonUtility.FromJson<SupportedPlatformsResponse>(platformResult.RawResult);
-                if (parsed?.supported_platforms != null && !IsCurrentPlatformRegistered(parsed.supported_platforms))
-                {
-                    string appId = NormalizeAppId(FB.AppId);
-                    ReportProbeFailure($"{CurrentPlatformDisplayName} not registered on FB app {appId}");
-                    return;
-                }
+                ReportProbeFailure($"{CurrentPlatformDisplayName} not registered on FB app {NormalizeAppId(FB.AppId)}");
+                return;
             }
 
-            ReportProbeFailure(vendorDetail);
+            AdapterDiagnostics.Record(AdapterDiagnosticVendor.Facebook, AdapterDiagnosticStatus.Ready,
+                "validated", "Initialized, app credentials validated, and current platform registered");
         }
 
         private static void ReportProbeFailure(string detail)
@@ -235,6 +203,24 @@ namespace Sorolla.Palette.Adapters
         private class SupportedPlatformsResponse
         {
             public string[] supported_platforms;
+        }
+
+        private static bool TryCurrentPlatformRegistration(string rawResult, out bool registered)
+        {
+            registered = false;
+            if (string.IsNullOrEmpty(rawResult)) return false;
+            SupportedPlatformsResponse parsed;
+            try
+            {
+                parsed = JsonUtility.FromJson<SupportedPlatformsResponse>(rawResult);
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+            if (parsed?.supported_platforms == null) return false;
+            registered = IsCurrentPlatformRegistered(parsed.supported_platforms);
+            return true;
         }
 
         private static bool ContainsAppId(IGraphResult result)
@@ -294,3 +280,60 @@ namespace Sorolla.Palette.Adapters
     }
 }
 #endif
+
+namespace Sorolla.Palette.Adapters
+{
+    internal static class FacebookProbeFailure
+    {
+        internal static string Detail(string appId, string transportError, string rawResult)
+        {
+            string graphMessage = GraphMessage(rawResult);
+            if (graphMessage.IndexOf("Application has been deleted", StringComparison.OrdinalIgnoreCase) >= 0)
+                return $"Facebook app {appId} has been deleted. Create a replacement Meta app, register this build's platform, then update the App ID and Client Token in Facebook Settings.";
+
+            if (graphMessage.IndexOf("Invalid OAuth access token signature", StringComparison.OrdinalIgnoreCase) >= 0)
+                return $"Facebook app {appId} exists, but its Client Token does not match. Re-copy the Client Token from Meta App Dashboard -> Settings -> Advanced.";
+
+            if (graphMessage.IndexOf("Invalid application ID", StringComparison.OrdinalIgnoreCase) >= 0)
+                return $"Facebook App ID {appId} is invalid. Re-copy the App ID from Meta App Dashboard -> Settings -> Basic.";
+
+            if (!string.IsNullOrEmpty(graphMessage))
+                return SafeDetail(graphMessage);
+
+            return SafeDetail(transportError);
+        }
+
+        static string GraphMessage(string rawResult)
+        {
+            if (string.IsNullOrEmpty(rawResult)) return "";
+            try
+            {
+                var parsed = JsonUtility.FromJson<GraphErrorResponse>(rawResult);
+                return parsed?.error?.message ?? "";
+            }
+            catch (ArgumentException)
+            {
+                return "";
+            }
+        }
+
+        static string SafeDetail(string detail)
+        {
+            if (string.IsNullOrEmpty(detail)) return "Unknown";
+            detail = detail.Replace('\n', ' ').Replace('\r', ' ');
+            return detail.Length > 300 ? detail.Substring(0, 299) + "..." : detail;
+        }
+
+        [Serializable]
+        sealed class GraphErrorResponse
+        {
+            public GraphError error;
+        }
+
+        [Serializable]
+        sealed class GraphError
+        {
+            public string message;
+        }
+    }
+}

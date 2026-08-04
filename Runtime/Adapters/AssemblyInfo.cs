@@ -5,3 +5,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Sorolla.Adapters.MAX")]
 [assembly: InternalsVisibleTo("Sorolla.Adapters.Adjust")]
 [assembly: InternalsVisibleTo("Sorolla.Adapters.Firebase")]
+[assembly: InternalsVisibleTo("Sorolla.Editor.Tests")]
