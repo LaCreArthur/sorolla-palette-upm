@@ -1,12 +1,64 @@
+using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Sorolla.Palette.Editor;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Sorolla.Palette.Editor.Tests
 {
     [TestFixture]
     public class BuildValidatorTests
     {
+        // ── Per-check isolation: one thrown check may not take the pass down with it ──
+
+        /// <summary>
+        ///     One shared try/catch used to wrap the whole validation pass, so the first check that threw
+        ///     ended it: every later check silently never ran, and the exception was attributed to whichever
+        ///     row the catch happened to name. A studio saw one unrelated red row and a report missing most
+        ///     of its evidence.
+        ///
+        ///     Three properties in one fixture, because the defect was all three at once: the throwing check
+        ///     names ITSELF (with its sub-check part, so two thrown findings on a shared row stay
+        ///     distinguishable), what it already PROVED before throwing survives, and the checks after it
+        ///     still run.
+        /// </summary>
+        [Test]
+        public void AThrownCheck_NamesItself_KeepsWhatItProved_AndDoesNotStopLaterChecks()
+        {
+            LogAssert.Expect(LogType.Error, new Regex("build\\.gradle_config.*threw"));
+            var results = new List<BuildValidator.ValidationResult>();
+
+            BuildValidator.Run(results, ReadinessChecks.GradleConfig, list =>
+            {
+                list.Add(new BuildValidator.ValidationResult(
+                    BuildValidator.ValidationStatus.Error, "compileOptions are on Java 11",
+                    "raise them to 17", ReadinessChecks.GradleConfig));
+                throw new InvalidOperationException("boom");
+            }, "Java + templates");
+
+            BuildValidator.Run(results, ReadinessChecks.MaxSettings, list => list.Add(
+                new BuildValidator.ValidationResult(
+                    BuildValidator.ValidationStatus.Valid, "MAX ad units set", null, ReadinessChecks.MaxSettings)));
+
+            Assert.AreEqual(3, results.Count,
+                "Expected the proven finding, the thrown finding, and the check that ran after it.");
+            Assert.AreEqual("compileOptions are on Java 11", results[0].Message,
+                "A finding proven before the throw must survive it - it still blocks the build.");
+
+            BuildValidator.ValidationResult thrown = results[1];
+            Assert.AreEqual(BuildValidator.ValidationStatus.Unverifiable, thrown.Status,
+                "Evaluation failed; that is not evidence the integration is broken, so it must not block.");
+            Assert.That(thrown.Message, Does.Contain("Gradle Configuration (Java + templates)"));
+            Assert.That(thrown.Message, Does.Contain("boom"));
+            Assert.AreEqual(ReadinessChecks.GradleConfig, thrown.Check,
+                "The thrown finding is attributed to the check that threw, not to a neighbour.");
+
+            Assert.AreEqual(BuildValidator.ValidationStatus.Valid, results[2].Status);
+            Assert.AreEqual(ReadinessChecks.MaxSettings, results[2].Check);
+        }
+
         [Test]
         public void RemoveBuildscriptBlock_WithR8Pin_RemovesBlock()
         {

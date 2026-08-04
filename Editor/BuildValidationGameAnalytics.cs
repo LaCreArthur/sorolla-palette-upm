@@ -44,22 +44,7 @@ namespace Sorolla.Palette.Editor
             string activeName = EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS ? "iOS" : "Android";
             bool activeConfigured = SdkConfigDetector.GetGameAnalyticsStatus() == SdkConfigDetector.ConfigStatus.Configured;
 
-            // Fix hints deliberately omit the "Window > GameAnalytics > Select Settings" navigation step: the
-            // row's "Edit" button performs exactly that navigation (product-audit fix cycle residual,
-            // 2026-07-21) - the hint states only what to do once there.
-            if (!activeConfigured)
-            {
-                results.Add(Error(
-                    category,
-                    $"{activeName} has no game key + secret key pair in Assets/Resources/GameAnalytics/Settings.asset.\n" +
-                    $"  GameAnalytics will drop 100% of events on {activeName}, the platform this build targets; " +
-                    "device log shows the SDK never leaving \"not initialized\".",
-                    $"Add {activeName} and paste the game key + secret key from the GameAnalytics dashboard"));
-            }
-            else
-            {
-                results.Add(Valid(category, $"{activeName} has a game key + secret key pair."));
-            }
+            results.Add(GradeGameAnalyticsPlatformKeys(activeConfigured, activeName));
 
             // The credential probe cannot grade this: the GA collector accepts any platform string on
             // valid credentials (greenlight probe spike 2026-07-10). Each dashboard platform is its own
@@ -86,6 +71,29 @@ namespace Sorolla.Palette.Editor
                     "Paste each platform's own game key + secret key from its GameAnalytics dashboard entry " +
                     "(intentional single-entry setups can ignore this warning)"));
             }
+        }
+
+        /// <summary>
+        ///     Grades the active build target's GameAnalytics key pair. Editor-state-free so the severity is
+        ///     testable: the old Count&gt;0 proxy read "Configured" off ANY platform's keys, so a game with
+        ///     iOS keys only shipped an Android build that dropped every event with a green row (issue #8).
+        ///
+        ///     Fix hints deliberately omit the "Window > GameAnalytics > Select Settings" navigation step: the
+        ///     row's "Edit" button performs exactly that navigation (product-audit fix cycle residual,
+        ///     2026-07-21) - the hint states only what to do once there.
+        /// </summary>
+        internal static ValidationResult GradeGameAnalyticsPlatformKeys(bool activeConfigured, string activeName)
+        {
+            ReadinessCheck category = ReadinessChecks.GameAnalyticsSettings;
+
+            return activeConfigured
+                ? Valid(category, $"{activeName} has a game key + secret key pair.")
+                : Error(
+                    category,
+                    $"{activeName} has no game key + secret key pair in Assets/Resources/GameAnalytics/Settings.asset.\n" +
+                    $"  GameAnalytics will drop 100% of events on {activeName}, the platform this build targets; " +
+                    "device log shows the SDK never leaving \"not initialized\".",
+                    $"Add {activeName} and paste the game key + secret key from the GameAnalytics dashboard");
         }
 
         /// <summary>

@@ -106,6 +106,84 @@ namespace Sorolla.Palette.Editor.Tests
             Assert.That(result.Fix, Does.Contain("graph.facebook.com"));
         }
 
+        /// <summary>
+        ///     A credential pair the Graph API rejects is an Error, and the row names WHICH of the three
+        ///     causes Graph collapsed under errorCode 190 plus the asset holding the wrong value. The
+        ///     deleted-app case is a recorded field incident: a Facebook app was deleted from the developer
+        ///     console while its dead app id stayed referenced in MAX's FAN mediation and Adjust's Facebook
+        ///     integration (Documentation~/dashboards/applovin-max.md). The probe sees the app
+        ///     object's deletion, which is exactly the half of that incident Palette can observe.
+        ///
+        ///     This is the EDITOR row's severity. FacebookProbeFailureTests covers the runtime adapter's own
+        ///     message builder for the same three causes; the two surfaces have separate producers.
+        /// </summary>
+        [TestCase("Error validating application. Application has been deleted.",
+            "has been deleted", TestName = "DeletedApp")]
+        [TestCase("Invalid OAuth access token signature.",
+            "client token in FacebookSettings.asset does not match", TestName = "ClientTokenMismatch")]
+        [TestCase("Invalid application ID",
+            "does not match any Facebook app", TestName = "AppIdMatchesNoFacebookApp")]
+        public void Facebook_RejectedCredentials_IsErrorNamingTheCause(string graphMessage, string expectedCause)
+        {
+            string body = "{\"error\":{\"message\":\"" + graphMessage + "\",\"type\":\"OAuthException\",\"code\":190}}";
+            FacebookPlatformValidator.ProbeResult probe =
+                FacebookPlatformValidator.EvaluateResponse(false, 400, body, "123456", "Android", 0);
+
+            Assert.AreEqual(FacebookPlatformValidator.ProbeState.CredentialInvalid, probe.State);
+
+            BuildValidator.ValidationResult result =
+                BuildValidator.GradeFacebookPlatform(true, probe.State, probe.Detail);
+
+            Assert.AreEqual(BuildValidator.ValidationStatus.Error, result.Status);
+            Assert.That(result.Message, Does.Contain(expectedCause));
+            Assert.That(result.Fix, Does.Contain("FacebookSettings.asset"));
+        }
+
+        /// <summary>
+        ///     ...and a non-200 with no credential cause in it is the vendor being down, not the studio's
+        ///     credentials being wrong. Grading every failed request as a rejected pair would block builds
+        ///     during a Graph outage.
+        /// </summary>
+        [TestCase(503, "<html>Service Unavailable</html>", TestName = "VendorOutage")]
+        [TestCase(429, "{\"error\":{\"message\":\"Application request limit reached\",\"code\":4}}",
+            TestName = "RateLimited")]
+        public void Facebook_NonCredentialFailureResponse_StaysIncomplete(int responseCode, string body)
+        {
+            FacebookPlatformValidator.ProbeResult probe =
+                FacebookPlatformValidator.EvaluateResponse(false, responseCode, body, "123456", "Android", 0);
+
+            Assert.AreEqual(FacebookPlatformValidator.ProbeState.Unreachable, probe.State);
+            Assert.AreEqual(
+                BuildValidator.ValidationStatus.Unverifiable,
+                BuildValidator.GradeFacebookPlatform(true, probe.State, probe.Detail).Status);
+        }
+
+        /// <summary>
+        ///     The active build target's GameAnalytics key pair. The old check asked whether ANY platform had
+        ///     keys, so an Android build of a game configured for iOS only read green while GameAnalytics
+        ///     dropped 100% of its events (issue #8) - fatal in Prototype, where GA is the sole vendor.
+        /// </summary>
+        [Test]
+        public void GameAnalytics_NoKeyPairForTheActivePlatform_IsErrorNamingThatPlatform()
+        {
+            BuildValidator.ValidationResult result =
+                BuildValidator.GradeGameAnalyticsPlatformKeys(false, "Android");
+
+            Assert.AreEqual(BuildValidator.ValidationStatus.Error, result.Status);
+            Assert.That(result.Message, Does.Contain("Android"));
+            Assert.That(result.Fix, Does.Contain("game key + secret key"));
+        }
+
+        [Test]
+        public void GameAnalytics_KeyPairForTheActivePlatform_Passes()
+        {
+            BuildValidator.ValidationResult result =
+                BuildValidator.GradeGameAnalyticsPlatformKeys(true, "iOS");
+
+            Assert.AreEqual(BuildValidator.ValidationStatus.Valid, result.Status);
+            Assert.That(result.Message, Does.Contain("iOS"));
+        }
+
         [Test]
         public void Max_MissingActivePlatformAdMobAppId_IsErrorNamingTheField()
         {

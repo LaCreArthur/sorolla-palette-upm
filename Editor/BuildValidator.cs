@@ -139,7 +139,7 @@ namespace Sorolla.Palette.Editor
         ///     <paramref name="part" /> distinguishes several checks that report against the same row, so
         ///     two thrown findings on that row are not indistinguishable.
         /// </summary>
-        static void Run(List<ValidationResult> results, ReadinessCheck attribution,
+        internal static void Run(List<ValidationResult> results, ReadinessCheck attribution,
             Action<List<ValidationResult>> check, string part = null)
         {
             string name = part == null ? attribution.Label : $"{attribution.Label} ({part})";

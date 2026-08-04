@@ -8,9 +8,15 @@ namespace Sorolla.Palette.Editor.Tests
     /// <summary>
     ///     Fixture tests for the pure Firebase config parser + active-app match (Cycle 9). These exercise
     ///     <see cref="FirebaseConfigMatch"/> on raw strings only - no AssetDatabase / PlayerSettings - which is
-    ///     the whole point of keeping the parse Unity-free. Severity mapping (present-but-mismatched → FAIL,
-    ///     zero/many → INCOMPLETE, missing-where-required → block) lives in the editor check and is covered by
-    ///     the observed BuildValidator behaviour; here we pin the parse/match outcomes it depends on.
+    ///     the whole point of keeping the parse Unity-free.
+    ///
+    ///     Coverage boundary, stated honestly: what is pinned here is which raw file reads as Match,
+    ///     Mismatch, or Unparseable - the wrong-game config incident is detected at exactly this layer. That a
+    ///     Firebase config Error then reaches the pre-build block (and that it is discarded where the row does
+    ///     not apply) is pinned in VendorFalseGreenTests. The one-line mapping inside the editor check
+    ///     (Mismatch → Error, several/unreadable/unparseable → Unverifiable, absent → Error in Full and
+    ///     Warning in Prototype) needs PlayerSettings and the project's own config files, so it has no unit
+    ///     fixture and is exercised by the window walk instead.
     /// </summary>
     [TestFixture]
     public class FirebaseConfigMatchTests

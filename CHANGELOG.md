@@ -4,8 +4,78 @@ All notable changes to this project will be documented in this file.
 
 ## [4.0.1] - 2026-08-04
 
+A trust patch. Several configurations that provably break an integration used to read as a
+non-failure; they now read red, so a project that upgrades to 4.0.1 without changing anything can
+go from healthy to failing. Each entry below states what turns red and why.
+
 ### Changed
 
+- A missing Facebook app id or client token is now an Error. The row used to be skipped, which reads
+  as a neutral non-failure, so a game could ship with Facebook init failing and analytics and
+  attribution never arriving, with nothing red anywhere in the report. Facebook is a core capability
+  in both modes.
+- A Facebook app with no platform registered for the active build target is now an Error. The Graph
+  API omits `supported_platforms` entirely rather than returning an empty list, and that response
+  used to read as a parse failure - an unregistered app reported as merely unreachable. Field
+  absence counts as zero platforms only on a response proven to be this app's object; a 200-wrapped
+  Graph error, a captive-portal body, or another app's object stays Incomplete, as do genuine
+  connection, proxy, timeout, and protocol failures, which get one action: retry from a network that
+  can reach `graph.facebook.com`. Only the active platform is graded.
+- An empty AdMob application id for the active platform is now an Error on the MAX Settings row,
+  wherever AppLovin MAX is included and its consent flow is enabled for that target. The consent
+  flow is Google UMP, which initializes the Google Mobile Ads SDK and aborts when no AdMob
+  application id is present, so no consent is collected and ads do not serve. The fix names who
+  provisions the id (it is created in Sorolla's AdMob account) and the exact AppLovin Integration
+  Manager field it goes into. No new gate id: the fact has the same owner, capability, scope,
+  severity, and studio action as the rest of that row. Scope: this establishes that the id is
+  present. It does not establish that the consent flow itself ran, which remains device evidence.
+  An id that cannot be READ at all - an AppLovin version that renamed the property - reports
+  Incomplete naming the failed read, never "empty".
+- The Firebase config check now applies whenever any Firebase module is installed, not Analytics
+  alone. A project running Crashlytics or Remote Config without Analytics had its config file
+  unchecked, so a wrong-game `google-services.json` passed unseen.
+- A required check that reports "skipped" is now Incomplete instead of counting toward green. A skip
+  is the absence of a verdict, not an affirmative pass. Consequence: with a non-mobile build target
+  active, the platform-scoped vendor checks cannot run, so the verdict reads INCOMPLETE where it
+  used to read healthy. The skip's own message becomes the action ("Select Android or iOS…") rather
+  than an instruction to send a report to Sorolla, which is reserved for a genuinely absent result.
+- The pre-build block now reads the evaluated report - the same rows the window and Copy Report
+  render - instead of raw validation results. A finding the report discards because its gate does
+  not apply to this project can no longer fail a build with nothing on screen to explain it, and a
+  blocked build now logs the stable check id and the fix beside each piece of evidence. An
+  unreachable or pending network probe still never blocks.
+- Build-log warnings are collected per finding, from evaluated rows only. A row whose worst finding
+  is Incomplete no longer hides a real warning underneath it, and warnings produced against rows
+  that do not apply here are no longer printed.
+- Every non-pass finding on an applicable row survives evaluation with the fix it was paired with,
+  in the window and in Copy Report alike. A check that observed several problems used to hand over
+  one line and one action, and evidence after the first line was discarded.
+- A required check that produced no observation now says so and gives a bounded action - refresh
+  once, then copy the report to Sorolla - instead of an empty row that reads as still-working. A
+  check that throws names itself, reports Incomplete because evaluation failed rather than a failure
+  it never proved, keeps whatever it had already proven, and no longer stops the checks after it.
+- Remedies name controls that exist. Fix text that pointed at removed buttons, an install
+  affordance that was never there, or an expected value held in a doc now names the live control or
+  quotes the SDK's own constant.
+- Refresh writes Palette's own economy item-type vocabulary into an empty GameAnalytics
+  `ResourceItemTypes` list when currencies are already configured. Palette puts the earn source /
+  spend sink in that slot on every economy call, so an empty list drops every resource event even
+  with the currency list perfectly filled in. The currency list is never touched: those names belong
+  to the game.
+- A hardcoded `org.gradle.java.home` line in the committed `gradleTemplate.properties` is now
+  deleted rather than reported. That path points at one machine's JDK and breaks Gradle on every
+  other machine; the JDK home is injected into the generated `gradle.properties` at build time.
+  Commented-out lines are left alone.
+- The scoped-registry repair now covers every installed package that has a known registry, including
+  optional installed capabilities.
+- Repairs are saved to disk at the end of the repair pass, and the repair log reports what actually
+  changed. A repair that only dirtied an in-memory asset used to report success while the file on
+  disk never changed. A repair that throws names itself in the log and no longer stops the repairs
+  after it; what it could not fix is reported by the check that finds it still there.
+- Public API: `BuildValidator.ResolveRequiredPackages()` returns `List<string>` instead of `bool`,
+  `ManifestManager.AddDependencies()` returns `List<string>` instead of `bool`, and
+  `SdkInstaller.InstallRequiredSdks()` returns `List<SdkInfo>` instead of `void`. Each now returns
+  what it actually installed, which is what the repair log reports.
 - Simplified Launch Readiness to one direct model from validation check to report row. Removed the
   duplicate gate catalog, adapter, evaluator result, and display-status layers without changing the
   24 stable gate ids or copied report schema.
@@ -13,6 +83,31 @@ All notable changes to this project will be documented in this file.
   every automatic project repair it performs.
 - Removed permanent cleanup machinery for pre-v4 mode define symbols. `SorollaConfig.asset` remains
   the sole mode source of truth.
+
+### Fixed
+
+- A correctly configured AppLovin MAX project could not read green. The MAX check asked whether the
+  shared result list was empty, which is a question about the checks that ran before it, so its
+  healthy-path pass was never emitted and the row arrived with no observation - reported to the
+  studio as "no result was produced, send this to Sorolla".
+- A vendor credential edited while its probe was in flight was silently discarded and the older
+  request settled over it, so the row kept reporting the previous credentials' verdict: a corrected
+  GameAnalytics secret key still read as rejected, and a changed Facebook app id or build target was
+  graded by the old answer. Both probes now key each answer to the request that asked for it, so
+  only the newest request publishes - including when a value is typed away and back inside the
+  timeout window.
+
+### Removed
+
+- The AppLovin MAX update modal, its polling, and its `EditorPrefs` state. Automatic version sync
+  already raises MAX to the registry floor on domain reload and never downgrades a manual upgrade,
+  so the modal was a second upgrade path over the same fact.
+- The unreferenced duplicate build-validation console renderer.
+- The domain-reload build-health console notifier. It was a second verdict surface reading raw
+  validation results, so it could disagree with the window. Automatic repairs still run when the
+  Palette window validates, during first-time setup, before every build, and in the command-line
+  report - they no longer run on every domain reload, so a project is repaired when it is opened or
+  built rather than on every script compile.
 
 ## [4.0.0] - 2026-08-04
 
