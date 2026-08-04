@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
@@ -79,136 +80,94 @@ namespace Sorolla.Palette.Editor
         };
 
         /// <summary>
-        ///     Checks whether GameAnalytics Settings.asset has a non-empty game key + secret key pair
-        ///     for the given platform. Reflection is required: Settings.gameKey/secretKey are private
-        ///     fields on the vendor's ScriptableObject, parallel-indexed with the public Platforms list.
+        ///     Whether Settings.asset has a non-empty game key + secret key pair for the given platform.
         /// </summary>
         static bool HasGameAnalyticsKeys(RuntimePlatform platform)
         {
+            foreach ((RuntimePlatform p, _, _) in ReadGameAnalyticsKeyRows())
+                if (p == platform)
+                    return true;
+            return false;
+        }
+
+        /// <summary>
+        ///     The one reader of GameAnalytics Settings.asset key data: every (platform, game key,
+        ///     secret key) row with both keys non-empty, platform named as the studio knows it
+        ///     ("iOS"/"Android"). Reflection because the GA package is not a compile-time dependency;
+        ///     any shape drift reads as an empty list, same stance as the other detectors here.
+        /// </summary>
+        static List<(RuntimePlatform platform, string gameKey, string secretKey)> ReadGameAnalyticsKeyRows()
+        {
+            var rows = new List<(RuntimePlatform, string, string)>();
+            if (!SdkDetector.IsInstalled(SdkId.GameAnalytics))
+                return rows;
+
             try
             {
                 UnityEngine.Object settings = Resources.Load("GameAnalytics/Settings");
                 if (settings == null)
-                    return false;
+                    return rows;
 
                 Type settingsType = settings.GetType();
                 const BindingFlags publicInstance = BindingFlags.Public | BindingFlags.Instance;
                 const BindingFlags privateInstance = BindingFlags.NonPublic | BindingFlags.Instance;
 
                 if (!(settingsType.GetField("Platforms", publicInstance)?.GetValue(settings) is IList platforms))
-                    return false;
+                    return rows;
                 if (!(settingsType.GetField("gameKey", privateInstance)?.GetValue(settings) is IList gameKeys))
-                    return false;
+                    return rows;
                 if (!(settingsType.GetField("secretKey", privateInstance)?.GetValue(settings) is IList secretKeys))
-                    return false;
+                    return rows;
 
                 for (int i = 0; i < platforms.Count; i++)
                 {
-                    if (!(platforms[i] is RuntimePlatform p) || p != platform) continue;
-
+                    if (!(platforms[i] is RuntimePlatform p)) continue;
                     string gameKey = i < gameKeys.Count ? gameKeys[i] as string : null;
                     string secretKey = i < secretKeys.Count ? secretKeys[i] as string : null;
-                    return !string.IsNullOrEmpty(gameKey) && !string.IsNullOrEmpty(secretKey);
+                    if (!string.IsNullOrEmpty(gameKey) && !string.IsNullOrEmpty(secretKey))
+                        rows.Add((p, gameKey, secretKey));
                 }
-
-                return false;
             }
             catch
             {
-                return false;
+                rows.Clear();
             }
+            return rows;
         }
 
         /// <summary>
-        ///     All (platform, game key) pairs configured in GameAnalytics Settings.asset, empty keys
-        ///     skipped. Each GA dashboard platform is its own game entry with a unique key pair, so a
-        ///     key appearing under two platforms is the observable signature of pasting one platform's
-        ///     keys into the other's slot - the credential probe cannot see that (the collector accepts
-        ///     any platform string on valid credentials).
+        ///     All (platform, game key) pairs configured in Settings.asset. Each GA dashboard platform
+        ///     is its own game entry with a unique key pair, so a key appearing under two platforms is
+        ///     the observable signature of pasting one platform's keys into the other's slot - the
+        ///     credential probe cannot see that (the collector accepts any platform string on valid
+        ///     credentials).
         /// </summary>
         public static List<(string platform, string gameKey)> GetGameAnalyticsPlatformKeys()
         {
             var pairs = new List<(string, string)>();
-            if (!SdkDetector.IsInstalled(SdkId.GameAnalytics))
-                return pairs;
-
-            try
-            {
-                UnityEngine.Object settings = Resources.Load("GameAnalytics/Settings");
-                if (settings == null)
-                    return pairs;
-
-                Type settingsType = settings.GetType();
-                if (!(settingsType.GetField("Platforms", BindingFlags.Public | BindingFlags.Instance)?.GetValue(settings) is IList platforms))
-                    return pairs;
-                if (!(settingsType.GetField("gameKey", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(settings) is IList gameKeys))
-                    return pairs;
-
-                for (int i = 0; i < platforms.Count && i < gameKeys.Count; i++)
-                {
-                    if (!(platforms[i] is RuntimePlatform p)) continue;
-                    if (gameKeys[i] is string key && !string.IsNullOrEmpty(key))
-                        pairs.Add((p.ToString(), key));
-                }
-            }
-            catch
-            {
-                // Settings.asset shape drift reads as "no pairs", same stance as the other readers here.
-            }
+            foreach ((RuntimePlatform platform, string gameKey, _) in ReadGameAnalyticsKeyRows())
+                pairs.Add((platform == RuntimePlatform.IPhonePlayer ? "iOS" : platform.ToString(), gameKey));
             return pairs;
         }
 
         /// <summary>
-        ///     Reads the GameAnalytics game key + secret key pair for the ACTIVE build target from
-        ///     Settings.asset. Same reflection approach as <see cref="HasGameAnalyticsKeys"/> - used by
-        ///     the GA credential probe, which needs the actual values, not just a presence bool.
+        ///     The GameAnalytics game key + secret key pair for the ACTIVE build target - used by the
+        ///     GA credential probe, which needs the actual values, not just a presence bool.
         /// </summary>
         public static bool TryGetGameAnalyticsCredentials(out string gameKey, out string secretKey)
         {
+            RuntimePlatform active = ActiveGameAnalyticsPlatform();
+            foreach ((RuntimePlatform platform, string key, string secret) in ReadGameAnalyticsKeyRows())
+            {
+                if (platform != active) continue;
+                gameKey = key;
+                secretKey = secret;
+                return true;
+            }
+
             gameKey = null;
             secretKey = null;
-
-            if (!SdkDetector.IsInstalled(SdkId.GameAnalytics))
-                return false;
-
-            try
-            {
-                UnityEngine.Object settings = Resources.Load("GameAnalytics/Settings");
-                if (settings == null)
-                    return false;
-
-                Type settingsType = settings.GetType();
-                const BindingFlags publicInstance = BindingFlags.Public | BindingFlags.Instance;
-                const BindingFlags privateInstance = BindingFlags.NonPublic | BindingFlags.Instance;
-
-                if (!(settingsType.GetField("Platforms", publicInstance)?.GetValue(settings) is IList platforms))
-                    return false;
-                if (!(settingsType.GetField("gameKey", privateInstance)?.GetValue(settings) is IList gameKeys))
-                    return false;
-                if (!(settingsType.GetField("secretKey", privateInstance)?.GetValue(settings) is IList secretKeys))
-                    return false;
-
-                RuntimePlatform active = ActiveGameAnalyticsPlatform();
-                for (int i = 0; i < platforms.Count; i++)
-                {
-                    if (!(platforms[i] is RuntimePlatform p) || p != active) continue;
-
-                    string candidateGameKey = i < gameKeys.Count ? gameKeys[i] as string : null;
-                    string candidateSecretKey = i < secretKeys.Count ? secretKeys[i] as string : null;
-                    if (string.IsNullOrEmpty(candidateGameKey) || string.IsNullOrEmpty(candidateSecretKey))
-                        return false;
-
-                    gameKey = candidateGameKey;
-                    secretKey = candidateSecretKey;
-                    return true;
-                }
-
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
+            return false;
         }
 
         /// <summary>
