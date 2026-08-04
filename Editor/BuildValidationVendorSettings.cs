@@ -61,6 +61,17 @@ namespace Sorolla.Palette.Editor
             // group, and the other platform's units are graded when it becomes the build target.
             bool activeIsIos = EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS;
             string platformName = activeIsIos ? "iOS" : "Android";
+
+            // The consent flow above is Google UMP: it initializes the Google Mobile Ads SDK, which aborts
+            // when no AdMob application id is present in the manifest / Info.plist. AppLovin writes that id
+            // from AppLovinSettings, so an empty field ships a consent flow that cannot run. Same owner,
+            // capability, scope, severity, and studio action as the rest of this row, so it grades here
+            // rather than as its own check.
+            ValidationResult adMob = GradeMaxAdMobAppId(
+                MaxSettingsSanitizer.GetAdMobAppId(activeIsIos), platformName);
+            if (adMob != null)
+                results.Add(adMob);
+
             var missing = new List<string>();
             foreach ((string format, PlatformAdUnitId unit) in new[]
                      {
@@ -81,15 +92,51 @@ namespace Sorolla.Palette.Editor
                     $"MAX ad unit IDs missing for {platformName} in SorollaConfig: {string.Join(", ", missing)}.\n" +
                     "  Every ad call for a missing format fails to load; banner units are not checked (optional format).",
                     $"Enter the AppLovin MAX ad unit IDs for {platformName} below"));
-                return results;
             }
 
-            results.Add(Valid(ReadinessChecks.MaxSettings, "MAX settings synced"));
+            // A missing AdMob id and missing ad units are two separate studio actions, so both findings are
+            // produced rather than the first returning early. The evaluator still collapses this row to its
+            // worst finding today - this is preparation for §4's multi-finding retention, not that behavior.
+            if (results.Count == 0)
+                results.Add(Valid(ReadinessChecks.MaxSettings, "MAX settings synced"));
 #else
             results.Add(Skipped(ReadinessChecks.MaxSettings, "MAX not installed"));
 #endif
 
             return results;
+        }
+
+        /// <summary>
+        ///     Grades the active platform's AdMob application id as part of the MAX settings row.
+        ///     Returns null when the id is present, so the row continues to its remaining findings.
+        ///
+        ///     Null and empty are different facts. AppLovin defaults both id fields to the empty string, so
+        ///     empty is an observed "the studio never filled this in". Null means the property could not be
+        ///     read at all - an AppLovin version that renamed or removed it, or a reflection throw - and
+        ///     grading an unread field as missing would block builds on a fact this check never observed.
+        /// </summary>
+        internal static ValidationResult GradeMaxAdMobAppId(string adMobAppId, string platformName)
+        {
+            if (adMobAppId == null)
+            {
+                return Unverifiable(
+                    ReadinessChecks.MaxSettings,
+                    $"Could not read the AdMob {platformName} application id from AppLovinSettings.\n" +
+                    "  The property is missing on this AppLovin version, so the consent flow's AdMob id " +
+                    "could not be checked either way.",
+                    "Confirm the AdMob App ID field in AppLovin Integration Manager, then copy this report " +
+                    "to Sorolla if the row does not clear");
+            }
+
+            return adMobAppId.Length == 0
+                ? Error(
+                    ReadinessChecks.MaxSettings,
+                    $"AdMob application id for {platformName} is empty in AppLovinSettings.\n" +
+                    "  The AppLovin consent flow (Google UMP) cannot initialize without it, so no consent " +
+                    "is collected and ads do not serve.",
+                    $"Paste the AdMob {platformName} app id (ca-app-pub-…~…) into AppLovin Integration Manager " +
+                    "-> AdMob App ID")
+                : null;
         }
 
         /// <summary>

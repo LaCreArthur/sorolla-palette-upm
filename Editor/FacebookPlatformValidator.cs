@@ -80,7 +80,9 @@ namespace Sorolla.Palette.Editor
             _ => null,
         };
 
-        static string OtherPlatformName() => ActivePlatformName() == "iOS" ? "Android" : "iOS";
+        // Derived from the platform this result GRADES, not from the current editor target: the cached
+        // result names its own platform, and the two disagree the moment the build target switches.
+        static string OtherPlatformName(string platformName) => platformName == "iOS" ? "Android" : "iOS";
 
         static bool IsRegistered(List<string> supportedPlatforms, string platformName) =>
             platformName == "iOS"
@@ -125,19 +127,25 @@ namespace Sorolla.Palette.Editor
 
         static ProbeResult Evaluate(UnityWebRequest request, string appId, string platformName)
         {
-            double now = EditorApplication.timeSinceStartup;
-
             bool networkOrProtocolError = request.result == UnityWebRequest.Result.ConnectionError
                 || request.result == UnityWebRequest.Result.DataProcessingError;
 
+            return EvaluateResponse(networkOrProtocolError, request.responseCode,
+                request.downloadHandler?.text, appId, platformName, EditorApplication.timeSinceStartup);
+        }
+
+        /// <summary>
+        ///     Transport-free grading of one Graph response, so the response semantics are testable
+        ///     without a live request.
+        /// </summary>
+        internal static ProbeResult EvaluateResponse(
+            bool networkOrProtocolError, long responseCode, string body, string appId, string platformName, double now)
+        {
             if (networkOrProtocolError)
             {
                 return new ProbeResult(ProbeState.Unreachable, appId, platformName,
                     "Could not reach the Facebook Graph API (offline, or the endpoint is blocked). Re-run the check (Refresh) when online.", now);
             }
-
-            long responseCode = request.responseCode;
-            string body = request.downloadHandler?.text;
 
             if (responseCode != 200)
             {
@@ -151,13 +159,14 @@ namespace Sorolla.Palette.Editor
                     $"Facebook Graph API request failed (HTTP {responseCode}). Re-run the check (Refresh) when online.", now);
             }
 
-            if (!TryGetSupportedPlatforms(body, out List<string> supportedPlatforms))
+            if (!TryGetSupportedPlatforms(body, appId, out List<string> supportedPlatforms))
             {
                 return new ProbeResult(ProbeState.Unreachable, appId, platformName,
-                    "Facebook Graph API response could not be parsed. Re-run the check (Refresh) when online.", now);
+                    "Facebook Graph API response could not be parsed. Re-run the check (Refresh) when online.",
+                    now);
             }
 
-            string otherName = OtherPlatformName();
+            string otherName = OtherPlatformName(platformName);
             bool otherRegistered = IsRegistered(supportedPlatforms, otherName);
 
             if (!IsRegistered(supportedPlatforms, platformName))
@@ -213,13 +222,28 @@ namespace Sorolla.Palette.Editor
             return true;
         }
 
-        static bool TryGetSupportedPlatforms(string body, out List<string> platforms)
+        /// <summary>
+        ///     A 200 response whose body carries no supported_platforms field means the app has NO
+        ///     platform registered at all - Graph omits the field entirely rather than returning an empty
+        ///     list. Reading that as a parse failure reported an unregistered app as merely unreachable,
+        ///     which is a false green (4.0.1 trust patch).
+        ///
+        ///     Field ABSENCE is only evidence of zero platforms when the body is proven to be THIS app's
+        ///     object, which is what the id check below establishes. Without it, any 200 that is not the
+        ///     app object - a 200-wrapped {"error":{...}}, a captive-portal {"status":"ok"}, or a
+        ///     permission-stripped response - would grade as "no platform registered" and block a build on
+        ///     a fact never observed. Those stay parse failures, and so does a supported_platforms value
+        ///     that is not a list.
+        /// </summary>
+        static bool TryGetSupportedPlatforms(string body, string appId, out List<string> platforms)
         {
             platforms = new List<string>();
             if (string.IsNullOrEmpty(body)) return false;
 
             if (!(MiniJson.Deserialize(body) is Dictionary<string, object> json)) return false;
-            if (!json.TryGetValue("supported_platforms", out object raw) || !(raw is List<object> list)) return false;
+            if (!json.TryGetValue("supported_platforms", out object raw))
+                return json.TryGetValue("id", out object rawId) && rawId is string id && id == appId;
+            if (!(raw is List<object> list)) return false;
 
             foreach (object entry in list)
             {

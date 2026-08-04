@@ -24,7 +24,7 @@ namespace Sorolla.Palette.Editor
                 Debug.Log($"[Palette BuildValidator] Auto-fix: {fix}");
 
             var results = BuildValidator.RunAllChecks();
-            var errors = results.Where(r => r.Status == BuildValidator.ValidationStatus.Error).ToList();
+            var errors = BuildValidator.BlockingErrors(results);
 
             if (errors.Count > 0)
             {

@@ -36,7 +36,10 @@ namespace Sorolla.Palette.Editor
                     $"Firebase modules installed without FirebaseApp:\n  {string.Join(", ", installedModules)}",
                     "Install com.google.firebase.app or remove Firebase modules"));
             }
-            else if (installedModules.Count > 0)
+            // FirebaseApp counts as Firebase being installed, matching HasAnyFirebaseModule: a project with
+            // FirebaseApp alone ships the native SDK and needs the config file, so this row must not report
+            // it as "Firebase not installed" while the config row grades it.
+            else if (HasAnyFirebaseModule(dependencies))
             {
                 results.Add(Valid(ReadinessChecks.FirebaseCoherence, "Firebase modules OK"));
             }
@@ -77,21 +80,23 @@ namespace Sorolla.Palette.Editor
         /// </summary>
         static List<ValidationResult> CheckFirebaseConfigFiles(Dictionary<string, object> dependencies)
         {
-            // In Full mode Firebase is required, so a missing config file that makes Firebase initialization
-            // fail must BLOCK, not merely warn (review F4-05) - otherwise the "Required" label on the config
-            // gate is decoration. In Prototype Firebase is optional, so a MISSING file stays a warning.
-            bool required = !SorollaSettings.IsPrototype;
-            bool hasFirebase = dependencies.ContainsKey(SdkRegistry.All[SdkId.FirebaseAnalytics].PackageId);
+            // In Full mode with the whole suite installed Firebase is required, so a missing config file that
+            // makes Firebase initialization fail must BLOCK, not merely warn (review F4-05) - otherwise the
+            // "Required" label on the config gate is decoration. In Prototype Firebase is optional, so a
+            // MISSING file stays a warning. A partial suite in Full mode belongs to the package check, so
+            // this row reports without blocking there - see GradeFor.
+            FirebaseConfigGrade grade = GradeFor(dependencies);
+            bool hasFirebase = HasAnyFirebaseModule(dependencies);
 
             switch (EditorUserBuildSettings.activeBuildTarget)
             {
                 case BuildTarget.Android:
                     return One(hasFirebase
-                        ? CheckAndroidConfig(required)
+                        ? CheckAndroidConfig(grade)
                         : Skipped(ReadinessChecks.FirebaseConfigAndroid, "Firebase not installed, config check skipped"));
                 case BuildTarget.iOS:
                     return One(hasFirebase
-                        ? CheckIosConfig(required)
+                        ? CheckIosConfig(grade)
                         : Skipped(ReadinessChecks.FirebaseConfigIos, "Firebase not installed, config check skipped"));
                 default:
                     // Neither gate applies off-mobile, and an observation against a NotApplicable gate is a
@@ -102,12 +107,56 @@ namespace Sorolla.Palette.Editor
 
         static List<ValidationResult> One(ValidationResult result) => new List<ValidationResult> { result };
 
-        static ValidationResult CheckAndroidConfig(bool required)
+        /// <summary>How hard a definite config finding may land on this project.</summary>
+        internal enum FirebaseConfigGrade
+        {
+            /// <summary>The row is not gradable here: report the finding, but never block on it.</summary>
+            Ungradable,
+            Optional,
+            Required,
+        }
+
+        static readonly SdkId[] s_firebaseModules =
+        {
+            SdkId.FirebaseApp,
+            SdkId.FirebaseAnalytics,
+            SdkId.FirebaseCrashlytics,
+            SdkId.FirebaseRemoteConfig,
+        };
+
+        /// <summary>
+        ///     The config file is read by every Firebase module, not just Analytics. Keying applicability on
+        ///     Analytics alone skipped the config check for a project running Crashlytics or Remote Config
+        ///     without Analytics, so a wrong-game google-services.json passed unseen (4.0.1 trust patch).
+        ///     That fix bites in Prototype and in complete-suite Full; a PARTIAL suite in Full mode is owned
+        ///     by the package check, which is why <see cref="GradeFor" /> refuses to block there.
+        /// </summary>
+        internal static bool HasAnyFirebaseModule(Dictionary<string, object> dependencies) =>
+            s_firebaseModules.Any(id => dependencies.ContainsKey(SdkRegistry.All[id].PackageId));
+
+        /// <summary>
+        ///     TWIN of the build.firebase_coherence catalog gate (ReadinessChecks.FirebaseSuite): Full mode
+        ///     grades the config only when the whole suite is installed, because an incomplete suite is the
+        ///     PACKAGE check's failure, and that gate resolves the row NotApplicable - so an Error produced
+        ///     here would be discarded by the evaluator and block the build with nothing on screen to
+        ///     explain it. Reporting it Unverifiable keeps the observation and keeps the build moving.
+        ///     The duplicated condition is pre-existing; §4/C3 unifies the two owners.
+        /// </summary>
+        internal static FirebaseConfigGrade GradeFor(Dictionary<string, object> dependencies)
+        {
+            if (SorollaSettings.IsPrototype)
+                return FirebaseConfigGrade.Optional;
+
+            bool completeSuite = s_firebaseModules.All(id => dependencies.ContainsKey(SdkRegistry.All[id].PackageId));
+            return completeSuite ? FirebaseConfigGrade.Required : FirebaseConfigGrade.Ungradable;
+        }
+
+        static ValidationResult CheckAndroidConfig(FirebaseConfigGrade grade)
         {
             ReadinessCheck category = ReadinessChecks.FirebaseConfigAndroid;
             List<string> candidates = SdkConfigDetector.FirebaseAndroidConfigPaths();
             if (candidates.Count == 0)
-                return MissingConfig(category, required,
+                return MissingConfig(category, grade,
                     "Assets/google-services.json not found.\n" +
                     "  Firebase Android (Analytics/Crashlytics/Remote Config) will fail to initialize on this platform.",
                     "Download from Firebase Console > Project Settings > Android app and place in Assets/");
@@ -125,7 +174,7 @@ namespace Sorolla.Palette.Editor
                 case FirebaseConfigMatchResult.Match:
                     return Valid(category, $"google-services.json matches the Android application id ({appId}).");
                 case FirebaseConfigMatchResult.Mismatch:
-                    return Error(category,
+                    return Mismatched(category, grade,
                         "google-services.json is for a different app (wrong google-services.json copied in?).\n" +
                         $"  Android application id: {appId}\n" +
                         $"  Config package name(s): {(found.Count == 0 ? "(none found)" : string.Join(", ", found))}",
@@ -137,12 +186,12 @@ namespace Sorolla.Palette.Editor
             }
         }
 
-        static ValidationResult CheckIosConfig(bool required)
+        static ValidationResult CheckIosConfig(FirebaseConfigGrade grade)
         {
             ReadinessCheck category = ReadinessChecks.FirebaseConfigIos;
             List<string> candidates = SdkConfigDetector.FirebaseIosConfigPaths();
             if (candidates.Count == 0)
-                return MissingConfig(category, required,
+                return MissingConfig(category, grade,
                     "GoogleService-Info.plist not found.\n" +
                     "  Firebase iOS (Analytics/Crashlytics/Remote Config) will fail to initialize on this platform.",
                     "Download from Firebase Console > Project Settings > iOS app and place in Assets/");
@@ -160,7 +209,7 @@ namespace Sorolla.Palette.Editor
                 case FirebaseConfigMatchResult.Match:
                     return Valid(category, $"GoogleService-Info.plist matches the iOS bundle id ({bundleId}).");
                 case FirebaseConfigMatchResult.Mismatch:
-                    return Error(category,
+                    return Mismatched(category, grade,
                         "GoogleService-Info.plist is for a different app (wrong GoogleService-Info.plist copied in?).\n" +
                         $"  iOS bundle id: {bundleId}\n" +
                         $"  Config BUNDLE_ID: {found ?? "(none found)"}",
@@ -189,7 +238,23 @@ namespace Sorolla.Palette.Editor
             }
         }
 
-        static ValidationResult MissingConfig(ReadinessCheck category, bool block, string message, string fix) =>
-            block ? Error(category, message, fix) : Warning(category, message, fix);
+        static ValidationResult MissingConfig(
+            ReadinessCheck category, FirebaseConfigGrade grade, string message, string fix) =>
+            grade switch
+            {
+                FirebaseConfigGrade.Required => Error(category, message, fix),
+                FirebaseConfigGrade.Optional => Warning(category, message, fix),
+                _ => Unverifiable(category, message, fix),
+            };
+
+        /// <summary>
+        ///     A config file that belongs to a different app is a proven defect, so it is an Error wherever
+        ///     the row is gradable - including Prototype, where a MISSING file is merely a warning.
+        /// </summary>
+        static ValidationResult Mismatched(
+            ReadinessCheck category, FirebaseConfigGrade grade, string message, string fix) =>
+            grade == FirebaseConfigGrade.Ungradable
+                ? Unverifiable(category, message, fix)
+                : Error(category, message, fix);
     }
 }

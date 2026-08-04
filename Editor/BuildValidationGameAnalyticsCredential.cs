@@ -52,7 +52,8 @@ namespace Sorolla.Palette.Editor
                     break;
 
                 case GameAnalyticsCredentialValidator.ProbeState.Unreachable:
-                    results.Add(Unverifiable(category, probe.Detail));
+                    results.Add(Unverifiable(category, probe.Detail,
+                        "Retry from a network that can reach api.gameanalytics.com, then click Refresh"));
                     break;
 
                 case GameAnalyticsCredentialValidator.ProbeState.CredentialInvalid:

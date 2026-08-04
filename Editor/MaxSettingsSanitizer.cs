@@ -51,6 +51,43 @@ namespace Sorolla.Palette.Editor
         }
 
         /// <summary>
+        ///     Get the AdMob application id AppLovin writes into the Android manifest / Info.plist for the
+        ///     active build target. AppLovin defaults both fields to the empty string, so an unset id reads
+        ///     as EMPTY. NULL means the value could not be read at all - AppLovinSettings absent, or an
+        ///     AppLovin version that renamed or removed the property - and the caller grades that as
+        ///     unverifiable rather than missing. Keep the two distinct.
+        /// </summary>
+        public static string GetAdMobAppId(bool ios)
+        {
+#if SOROLLA_MAX_INSTALLED
+            try
+            {
+                var settingsType = GetAppLovinSettingsType();
+                if (settingsType == null)
+                    return null;
+
+                var instanceProp = settingsType.GetProperty("Instance",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                var instance = instanceProp?.GetValue(null);
+                if (instance == null)
+                    return null;
+
+                var appIdProp = settingsType.GetProperty(ios ? "AdMobIosAppId" : "AdMobAndroidAppId",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+                return appIdProp?.GetValue(instance) as string;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"{Tag} Failed to get AdMob app id: {e.Message}");
+                return null;
+            }
+#else
+            return null;
+#endif
+        }
+
+        /// <summary>
         ///     Check if AppLovinSettings has the shared publisher SDK key.
         /// </summary>
         public static bool IsSdkKeyConfigured()

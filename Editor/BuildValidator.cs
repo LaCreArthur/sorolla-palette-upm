@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -128,6 +129,14 @@ namespace Sorolla.Palette.Editor
 
             return results;
         }
+
+        /// <summary>
+        ///     The one pre-build blocking rule, read by <see cref="BuildValidatorPreprocessor" />: an Error
+        ///     blocks the build, and nothing else does. Unverifiable results (a pending or unreachable
+        ///     vendor probe) never block - the check could not prove the integration broken.
+        /// </summary>
+        internal static List<ValidationResult> BlockingErrors(IEnumerable<ValidationResult> results) =>
+            results.Where(r => r.Status == ValidationStatus.Error).ToList();
 
         /// <summary>
         ///     Run all auto-fixes before validation. Returns list of fixes applied.

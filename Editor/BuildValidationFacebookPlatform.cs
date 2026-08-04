@@ -32,46 +32,82 @@ namespace Sorolla.Palette.Editor
 
             if (!SdkConfigDetector.TryGetFacebookCredentials(out string appId, out string clientToken))
             {
-                results.Add(Skipped(category, "Facebook app id/client token not set, platform check skipped"));
+                results.Add(GradeFacebookPlatform(false, default, null));
                 return results;
             }
 
             FacebookPlatformValidator.EnsureChecked(appId, clientToken);
             FacebookPlatformValidator.ProbeResult probe = FacebookPlatformValidator.Current;
 
-            switch (probe.State)
-            {
-                case FacebookPlatformValidator.ProbeState.NotStarted:
-                case FacebookPlatformValidator.ProbeState.Pending:
-                    results.Add(Unverifiable(category, "Checking Facebook app platform registration..."));
-                    break;
+            // The cached result carries the app id and platform it was probed for. EnsureChecked starts a
+            // fresh probe when either changed, but Current still holds the OLD settled result until that one
+            // lands - so grading it here would judge this project by another app id's or another build
+            // target's answer.
+            bool probeIsCurrent = probe.AppId == appId
+                && probe.PlatformName == FacebookPlatformValidator.ActivePlatformName();
+            results.Add(GradeFacebookPlatform(true, probe.State, probe.Detail, probeIsCurrent));
 
+            return results;
+        }
+
+        /// <summary>
+        ///     Grades the Facebook platform row from credential presence plus the cached probe state.
+        ///     Transport-free so the severities are testable.
+        /// </summary>
+        internal static ValidationResult GradeFacebookPlatform(
+            bool hasCredentials,
+            FacebookPlatformValidator.ProbeState state,
+            string detail,
+            bool probeIsCurrent = true)
+        {
+            ReadinessCheck category = ReadinessChecks.FacebookPlatformConfig;
+
+            // Absent credentials used to skip the row, which rendered as a neutral non-failure: a game
+            // shipping with no Facebook app id lost all Facebook attribution with nothing red anywhere
+            // (4.0.1 trust patch). Facebook is a core capability in both modes, so this is an Error.
+            if (!hasCredentials)
+            {
+                return Error(
+                    category,
+                    "Facebook app id / client token are not set in FacebookSettings.asset.\n" +
+                    "  Facebook init fails; analytics and attribution never reach Facebook.",
+                    "Enter the app id + client token from the Facebook developer console in FacebookSettings.asset");
+            }
+
+            if (state == FacebookPlatformValidator.ProbeState.NotStarted ||
+                state == FacebookPlatformValidator.ProbeState.Pending)
+            {
+                return Unverifiable(category, "Checking Facebook app platform registration...");
+            }
+
+            if (!probeIsCurrent)
+            {
+                return Unverifiable(category,
+                    "The cached Facebook result was probed for a different app id or build target.",
+                    "Click Refresh to re-check this app id against the active build target");
+            }
+
+            switch (state)
+            {
                 case FacebookPlatformValidator.ProbeState.Unreachable:
-                    results.Add(Unverifiable(category, probe.Detail));
-                    break;
+                    return Unverifiable(category, detail,
+                        "Retry from a network that can reach graph.facebook.com, then click Refresh");
 
                 case FacebookPlatformValidator.ProbeState.PlatformMissing:
-                    results.Add(Error(
-                        category,
-                        probe.Detail,
-                        "FB console -> Settings -> Basic -> Add Platform"));
-                    break;
+                    return Error(category, detail, "FB console -> Settings -> Basic -> Add Platform");
 
                 case FacebookPlatformValidator.ProbeState.CredentialInvalid:
                     // Fix hint omits the "open FacebookSettings.asset" step (product-audit fix cycle
                     // residual, 2026-07-21): the row's "Open FB Settings" button already opens it.
-                    results.Add(Error(
-                        category,
-                        probe.Detail,
-                        "Compare the app id + client token against the Facebook developer console"));
-                    break;
+                    return Error(category, detail,
+                        "Compare the app id + client token against the Facebook developer console");
 
                 case FacebookPlatformValidator.ProbeState.Verified:
-                    results.Add(Valid(category, probe.Detail));
-                    break;
-            }
+                    return Valid(category, detail);
 
-            return results;
+                default:
+                    return Unverifiable(category, "Checking Facebook app platform registration...");
+            }
         }
     }
 }
