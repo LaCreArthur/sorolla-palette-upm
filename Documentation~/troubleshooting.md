@@ -336,6 +336,24 @@ buildscript {
 2. Place in `Assets/` or `Assets/Plugins/Android/`
 3. Package name must match exactly
 
+### Gradle: "Could not find com.google.firebase:firebase-*-unity"
+
+**Error**: Gradle fails with `Could not find com.google.firebase:firebase-app-unity:<version>` (and the analytics/config/crashlytics siblings) during `processDebugNavigationResources` or dependency resolution.
+
+**Cause**: The Firebase Unity Android artifacts ship inside the UPM packages as `.srcaar` archives. EDM4U converts them into a local Maven repo at `Assets/GeneratedLocalRepo/` during Android resolution - and that folder is gitignored. On a fresh checkout or after deleting `Library/`, it does not exist yet. Interactive Editor sessions trigger resolution on domain reload, but **batchmode/CLI builds never do**, so any CI or command-line Android build on a fresh workspace fails here deterministically. This is not a flaky first-run issue and an Editor restart is not the mechanism - one explicit resolve is.
+
+**Fix**: Force one Android resolve before the first Android build on a fresh workspace:
+
+- Editor: `Assets > External Dependency Manager > Android Resolver > Force Resolve`
+- CI/CLI (run once before the build step):
+
+```bash
+Unity -batchmode -nographics -projectPath <project> -buildTarget Android \
+  -executeMethod GooglePlayServices.PlayServicesResolver.MenuForceResolve -quit
+```
+
+`Assets/GeneratedLocalRepo/Firebase/m2repository/` should now contain the `firebase-*-unity` artifacts, and the build will pass.
+
 ---
 
 ## Firebase Issues
