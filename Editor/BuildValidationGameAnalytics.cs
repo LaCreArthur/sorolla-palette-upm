@@ -13,7 +13,7 @@ namespace Sorolla.Palette.Editor
         ///     so a prototype game (GA as sole vendor) silently drops 100% of its events on the unconfigured
         ///     platform (issue #8).
         ///
-        ///     Severity: missing keys for the active platform is an Error, which blocks the build like the
+        ///     Severity: missing keys for the active platform is an Error, which fails launch readiness like the
         ///     Adjust token does - a build whose sole analytics vendor cannot report a single event is not a
         ///     build worth making.
         ///

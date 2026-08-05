@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.2] - 2026-08-05
+
+### Changed
+
+- Pre-build validation no longer stops builds. Failing checks are logged as errors in the build log
+  and the report still grades them red, but the build always continues. Several required facts
+  (Facebook platform registration with a Store ID, AdMob app registration, store ids) can only
+  exist after a first build reaches the stores, so withholding the binary deadlocked a first
+  release. A red report is a launch blocker, not a build blocker.
+
 ## [4.0.1] - 2026-08-04
 
 A trust patch. Several configurations that provably break an integration used to read as a

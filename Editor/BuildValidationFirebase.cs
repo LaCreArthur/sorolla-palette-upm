@@ -74,7 +74,7 @@ namespace Sorolla.Palette.Editor
 
             // This producer OBSERVES; it never asks whether its row is gradable here. The catalog gate owns
             // that alone, and a finding it does not apply to is discarded by the evaluator - which is also
-            // the only thing the pre-build block reads, so a discarded finding cannot fail a build.
+            // the only thing the build-log error pass reads, so a discarded finding cannot surface there.
             results.Add(!HasAnyFirebaseModule(dependencies)
                 ? Skipped(gate, "Firebase not installed, config check skipped")
                 : gate == ReadinessChecks.FirebaseConfigAndroid
@@ -202,7 +202,7 @@ namespace Sorolla.Palette.Editor
         ///     A missing config file breaks Firebase initialization, so it is an Error in Full mode where
         ///     Firebase ships, and a warning in Prototype where it is optional. Whether the row is graded at
         ///     all is not this producer's question - the catalog gate owns it, and the evaluated model is
-        ///     what the build block reads. (A config file belonging to a DIFFERENT app is a proven defect in
+        ///     what the report grades. (A config file belonging to a DIFFERENT app is a proven defect in
         ///     either mode, so those sites call Error directly.)
         /// </summary>
         static ValidationResult MissingConfig(ReadinessCheck category, string message, string fix) =>

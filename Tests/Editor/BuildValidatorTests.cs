@@ -45,11 +45,11 @@ namespace Sorolla.Palette.Editor.Tests
             Assert.AreEqual(3, results.Count,
                 "Expected the proven finding, the thrown finding, and the check that ran after it.");
             Assert.AreEqual("compileOptions are on Java 11", results[0].Message,
-                "A finding proven before the throw must survive it - it still blocks the build.");
+                "A finding proven before the throw must survive it - it still fails the report.");
 
             BuildValidator.ValidationResult thrown = results[1];
             Assert.AreEqual(BuildValidator.ValidationStatus.Unverifiable, thrown.Status,
-                "Evaluation failed; that is not evidence the integration is broken, so it must not block.");
+                "Evaluation failed; that is not evidence the integration is broken, so it must not fail the report.");
             Assert.That(thrown.Message, Does.Contain("Gradle Configuration (Java + templates)"));
             Assert.That(thrown.Message, Does.Contain("boom"));
             Assert.AreEqual(ReadinessChecks.GradleConfig, thrown.Check,

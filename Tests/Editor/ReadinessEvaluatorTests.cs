@@ -117,11 +117,11 @@ namespace Sorolla.Palette.Editor.Tests
 
         /// <summary>
         ///     An observation against a gate that does not apply here is DISCARDED, and discarding it must
-        ///     also mean it cannot block a build - the reason blocking reads this model and not the raw
+        ///     also mean it cannot fail the report - the reason grading reads this model and not the raw
         ///     producer results.
         /// </summary>
         [Test]
-        public void ObservationOnANotApplicableRow_IsDiscarded_AndCannotBlock()
+        public void ObservationOnANotApplicableRow_IsDiscarded_AndCannotFail()
         {
             ReadinessReport report = ReadinessEvaluator.Evaluate(
                 Context(platform: ReadinessPlatform.Android),
@@ -134,16 +134,16 @@ namespace Sorolla.Palette.Editor.Tests
 
             Assert.AreEqual(ReadinessDisposition.NotApplicable, row.Disposition);
             Assert.IsEmpty(row.Findings);
-            Assert.IsEmpty(report.BlockingRows);
+            Assert.IsEmpty(report.FailingRows);
             Assert.AreEqual(0, report.FailCount);
         }
 
         /// <summary>
         ///     One check that threw names itself, grades Incomplete because evaluation failed rather than
-        ///     the integration being proven broken, and never blocks a build.
+        ///     the integration being proven broken, and never grades as a failure.
         /// </summary>
         [Test]
-        public void ThrownCheckReportedUnverifiable_IsIncompleteAndNonBlocking()
+        public void ThrownCheckReportedUnverifiable_IsIncompleteAndNonFailing()
         {
             ReadinessReport report = ReadinessEvaluator.Evaluate(Context(), new List<BuildValidator.ValidationResult>
             {
@@ -153,7 +153,7 @@ namespace Sorolla.Palette.Editor.Tests
             ReadinessRow row = report.Rows.Single(r => r.Check == ReadinessChecks.RequiredSdks);
 
             Assert.AreEqual(ReadinessOutcome.Incomplete, row.Outcome);
-            Assert.IsEmpty(report.BlockingRows);
+            Assert.IsEmpty(report.FailingRows);
             StringAssert.Contains("Required SDKs", row.Findings[0].Evidence);
         }
 

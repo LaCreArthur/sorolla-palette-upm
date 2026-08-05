@@ -12,7 +12,7 @@ namespace Sorolla.Palette.Editor.Tests
     ///
     ///     Coverage boundary, stated honestly: what is pinned here is which raw file reads as Match,
     ///     Mismatch, or Unparseable - the wrong-game config incident is detected at exactly this layer. That a
-    ///     Firebase config Error then reaches the pre-build block (and that it is discarded where the row does
+    ///     Firebase config Error then reaches the report as a failure (and that it is discarded where the row does
     ///     not apply) is pinned in VendorFalseGreenTests. The one-line mapping inside the editor check
     ///     (Mismatch → Error, several/unreadable/unparseable → Unverifiable, absent → Error in Full and
     ///     Warning in Prototype) needs PlayerSettings and the project's own config files, so it has no unit

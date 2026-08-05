@@ -44,7 +44,7 @@ namespace Sorolla.Palette.Editor.Tests
 
         /// <summary>
         ///     Field absence only means "zero platforms" on a body proven to be THIS app's object. These
-        ///     three 200s are not that, and grading them as zero-platform would block a build on a fact
+        ///     three 200s are not that, and grading them as zero-platform would fail the report on a fact
         ///     never observed.
         /// </summary>
         [TestCase("{\"error\":{\"message\":\"Invalid OAuth access token\",\"code\":190}}", TestName = "GraphErrorWrappedIn200")]
@@ -141,7 +141,7 @@ namespace Sorolla.Palette.Editor.Tests
 
         /// <summary>
         ///     ...and a non-200 with no credential cause in it is the vendor being down, not the studio's
-        ///     credentials being wrong. Grading every failed request as a rejected pair would block builds
+        ///     credentials being wrong. Grading every failed request as a rejected pair would fail reports
         ///     during a Graph outage.
         /// </summary>
         [TestCase(503, "<html>Service Unavailable</html>", TestName = "VendorOutage")]
@@ -205,7 +205,7 @@ namespace Sorolla.Palette.Editor.Tests
         }
 
         /// <summary>
-        ///     Null is an unread property (AppLovin version drift), not an empty field: it must not block a
+        ///     Null is an unread property (AppLovin version drift), not an empty field: it must not fail a
         ///     build by claiming the studio left the id blank.
         /// </summary>
         [Test]
@@ -314,13 +314,13 @@ namespace Sorolla.Palette.Editor.Tests
             new BuildValidator.ValidationResult(status, message, "fix", check);
 
         /// <summary>
-        ///     The blocking rule, asserted on the model the pre-build hook actually reads. Cached vendor
-        ///     Errors block and an unreachable probe does not. That BuildValidatorPreprocessor consumes
+        ///     The failure-grading rule, asserted on the model the pre-build hook actually reads. Cached vendor
+        ///     Errors fail and an unreachable probe does not. That BuildValidatorPreprocessor consumes
         ///     exactly this collection is hand-verified (its one-line call site): OnPreprocessBuild needs a
         ///     BuildReport and live project state. Accepted limitation.
         /// </summary>
         [Test]
-        public void EvaluatedReport_BlocksOnGradedFailuresOnly()
+        public void EvaluatedReport_FailsOnGradedFailuresOnly()
         {
             FacebookPlatformValidator.ProbeResult unreachable =
                 FacebookPlatformValidator.EvaluateResponse(true, 0, null, "123456", "Android", 0);
@@ -335,18 +335,18 @@ namespace Sorolla.Palette.Editor.Tests
 
             CollectionAssert.AreEquivalent(
                 new[] { ReadinessChecks.FacebookPlatformConfig.Id, ReadinessChecks.MaxSettings.Id },
-                report.BlockingRows.Select(r => r.Check.Id).ToList());
+                report.FailingRows.Select(r => r.Check.Id).ToList());
         }
 
         /// <summary>
-        ///     PINNING REGRESSION for the blocking source: the Firebase config producer observes without
+        ///     PINNING REGRESSION for the grading source: the Firebase config producer observes without
         ///     asking whether its row applies, so on an incomplete Full suite it can emit an Error against a
-        ///     row the catalog resolves NotApplicable. The report discards it - and because the build block
-        ///     reads that same report, the discarded finding cannot fail a build with nothing on screen to
+        ///     row the catalog resolves NotApplicable. The report discards it - and because the build-log error pass
+        ///     reads that same report, the discarded finding cannot surface at build time with nothing on screen to
         ///     explain it. Reading raw producer results is exactly the shape this pins shut.
         /// </summary>
         [Test]
-        public void ProducerErrorOnANotApplicableRow_IsDiscardedAndNeverBlocks()
+        public void ProducerErrorOnANotApplicableRow_IsDiscardedAndNeverFails()
         {
             ReadinessReport report = ReadinessEvaluator.Evaluate(
                 // Full mode with FirebaseApp alone: an incomplete suite, which the package check owns.
@@ -359,15 +359,15 @@ namespace Sorolla.Palette.Editor.Tests
             ReadinessRow row = report.Rows.Single(r => r.Check == ReadinessChecks.FirebaseConfigAndroid);
 
             Assert.AreEqual(ReadinessDisposition.NotApplicable, row.Disposition);
-            Assert.IsEmpty(report.BlockingRows);
+            Assert.IsEmpty(report.FailingRows);
         }
 
         /// <summary>
-        ///     ...and where the same row IS gradable, the Error blocks - so discarding is scoped to
+        ///     ...and where the same row IS gradable, the Error fails - so discarding is scoped to
         ///     inapplicability rather than quietly swallowing Firebase failures.
         /// </summary>
         [Test]
-        public void ProducerErrorOnAGradableFirebaseRow_Blocks()
+        public void ProducerErrorOnAGradableFirebaseRow_Fails()
         {
             ReadinessReport report = ReadinessEvaluator.Evaluate(Context(FullSuite),
                 new List<BuildValidator.ValidationResult>
@@ -378,7 +378,7 @@ namespace Sorolla.Palette.Editor.Tests
 
             CollectionAssert.AreEquivalent(
                 new[] { ReadinessChecks.FirebaseConfigAndroid.Id },
-                report.BlockingRows.Select(r => r.Check.Id).ToList());
+                report.FailingRows.Select(r => r.Check.Id).ToList());
         }
     }
 }

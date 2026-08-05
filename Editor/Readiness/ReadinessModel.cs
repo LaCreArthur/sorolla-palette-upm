@@ -166,17 +166,19 @@ namespace Sorolla.Palette.Editor
         internal Greenlight.GreenlightReportExport.Fingerprint Fingerprint;
 
         /// <summary>
-        ///     The ONE pre-build blocking rule, read by <see cref="BuildValidatorPreprocessor" />: a row this
-        ///     report GRADES as a failure blocks the build, and nothing else does. It reads the evaluated
-        ///     model rather than raw producer results on purpose - an observation the report discards (a gate
-        ///     that does not apply here) can then never block a build with nothing on screen to explain it,
-        ///     and an unproven result (Incomplete) never blocks at all.
+        ///     The rows this report GRADES as failures - the launch blockers. Builds are never withheld
+        ///     over them (<see cref="BuildValidatorPreprocessor" /> logs them and lets the build continue,
+        ///     because required facts like store ids and vendor platform registration can only exist after
+        ///     a first build reaches the stores). Reads the evaluated model rather than raw producer
+        ///     results on purpose - an observation the report discards (a gate that does not apply here)
+        ///     never fails with nothing on screen to explain it, and an unproven result (Incomplete) never
+        ///     fails at all.
         /// </summary>
-        internal IReadOnlyList<ReadinessRow> BlockingRows =>
+        internal IReadOnlyList<ReadinessRow> FailingRows =>
             Rows.Where(r => r.Disposition == ReadinessDisposition.Evaluated &&
                             r.Outcome == ReadinessOutcome.Fail).ToList();
 
-        internal int FailCount => BlockingRows.Count;
+        internal int FailCount => FailingRows.Count;
         internal int WarnCount => Rows.Count(r => r.Disposition == ReadinessDisposition.Evaluated &&
                                                   r.Outcome == ReadinessOutcome.Warn);
         internal int WaitCount => IntegrityErrors.Count +

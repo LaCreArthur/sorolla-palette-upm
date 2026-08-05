@@ -24,25 +24,27 @@ namespace Sorolla.Palette.Editor
             foreach (string fix in fixes)
                 Debug.Log($"[Palette BuildValidator] Auto-fix: {fix}");
 
-            // Blocking reads the EVALUATED report, not the raw producer results: what the window and the
-            // copied report grade as a failure is exactly what stops a build. A producer result the report
-            // discards (a gate that does not apply to this project) can no longer fail a build invisibly,
-            // and an unproven result stays Incomplete and never blocks.
+            // Failures are logged loudly but NEVER stop the build (2026-08-05, Arthur). A red required row
+            // is a LAUNCH blocker, not a build blocker: several required facts (Facebook platform
+            // registration, store ids, AdMob app registration) can only exist after a first build reaches
+            // the stores, so withholding the binary deadlocks a first release. The binary is also identical
+            // whether a vendor console is configured or not - blocking it fixes nothing. The report reads
+            // the EVALUATED model so a discarded producer result can never surface here invisibly.
             ReadinessReport readiness = Greenlight.GreenlightEvaluator.Evaluate(BuildValidator.RunAllChecks());
-            IReadOnlyList<ReadinessRow> blocking = readiness.BlockingRows;
+            IReadOnlyList<ReadinessRow> failing = readiness.FailingRows;
 
-            if (blocking.Count > 0)
+            if (failing.Count > 0)
             {
-                foreach (ReadinessRow row in blocking)
+                foreach (ReadinessRow row in failing)
                 foreach (ReadinessFinding finding in row.Findings)
                     if (finding.Outcome == ReadinessOutcome.Fail)
                         Debug.LogError($"[Palette BuildValidator] ERROR: {row.Check.Id}: {finding.Evidence}\n" +
                                        $"  Fix: {finding.Fix}");
 
-                throw new BuildFailedException(
-                    $"Build validation failed with {blocking.Count} failing check(s). " +
-                    "Open Tools > Sorolla Palette SDK for details."
-                );
+                Debug.LogError(
+                    $"[Palette BuildValidator] Launch readiness FAILED with {failing.Count} failing check(s). " +
+                    "The build continues so it can reach stores and internal QA, but do NOT launch " +
+                    "campaigns on it. Open Tools > Sorolla Palette SDK for details.");
             }
 
             // Release-readiness warnings (no release keystore, Adjust still in sandbox) are about store

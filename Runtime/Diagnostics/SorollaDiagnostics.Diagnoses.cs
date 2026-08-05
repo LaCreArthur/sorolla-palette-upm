@@ -51,12 +51,13 @@ namespace Sorolla.Palette
             "Palette reports an unknown mode and continues in degraded mode; analytics, consent, and IAP can continue, but ads and mode-dependent vendor configuration cannot initialize correctly.",
             "In Unity: open Tools > Sorolla Palette SDK and create the configuration asset at exactly Assets/Resources/SorollaConfig.asset. The path and filename are read via Resources.Load by string, so a rename or wrong folder is invisible until this check catches it.");
 
-        // Adjust app token is a documented hard build gate in Full mode (BuildValidatorPreprocessor
-        // throws BuildFailedException on an empty/short token) - this row is the runtime mirror of
-        // that same fact, for a dev-build session where the throw hasn't happened yet.
+        // Adjust app token is a required Full-mode fact the pre-build report grades red - this row is
+        // the runtime mirror of that same fact, for a dev-build session where no report was read.
+        // Builds are never withheld over it (2026-08-05): the red row is a launch blocker, not a build
+        // blocker.
         internal static (string why, string signal, string fix) AdjustTokenMissingDiagnosis() => (
             "SorollaConfig.adjustAppToken is empty (or too short to be real) while the SDK is in Full mode.",
-            "Every Adjust call is a no-op; attribution and the Adjust ADID/Attribution rows never resolve. A device or release build will fail outright - Full mode makes this token a hard build gate.",
+            "Every Adjust call is a no-op; attribution and the Adjust ADID/Attribution rows never resolve. The pre-build report grades this red - do not launch campaigns until it is set.",
             "Adjust dashboard -> the app -> All Settings -> copy the App Token into SorollaConfig.adjustAppToken. Prototype mode has no such requirement if Adjust isn't needed yet.");
 
         internal static (string why, string signal, string fix) NetworkUnavailableDiagnosis() => (

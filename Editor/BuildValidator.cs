@@ -134,7 +134,7 @@ namespace Sorolla.Palette.Editor
         ///
         ///     Checks append into the shared list as they go rather than returning one at the end, so a
         ///     throw halfway through keeps everything that check already PROVED - a Gradle Java-11 Error
-        ///     found before the throw still blocks the build instead of vanishing with the exception.
+        ///     found before the throw still fails the report instead of vanishing with the exception.
         ///
         ///     <paramref name="part" /> distinguishes several checks that report against the same row, so
         ///     two thrown findings on that row are not indistinguishable.

@@ -273,7 +273,7 @@ namespace Sorolla.Palette.Editor
         ///     Field ABSENCE is only evidence of zero platforms when the body is proven to be THIS app's
         ///     object, which is what the id check below establishes. Without it, any 200 that is not the
         ///     app object - a 200-wrapped {"error":{...}}, a captive-portal {"status":"ok"}, or a
-        ///     permission-stripped response - would grade as "no platform registered" and block a build on
+        ///     permission-stripped response - would grade as "no platform registered" and fail the report on
         ///     a fact never observed. Those stay parse failures, and so does a supported_platforms value
         ///     that is not a list.
         /// </summary>
