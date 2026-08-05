@@ -223,17 +223,6 @@ namespace Sorolla.Palette
             lock (s_lock) { s_purchaseIssue = SafeDetail(detail); }
         }
 
-        /// <summary>The verification state Adjust reported, taken from its callback rather than classified
-        /// back out of the message text.</summary>
-        internal static void RecordPurchaseVerification(PurchaseVerificationState state, string detail)
-        {
-            lock (s_lock)
-            {
-                s_purchaseVerificationState = state;
-                s_purchaseVerification = SafeDetail(detail);
-            }
-        }
-
         internal static void RecordProgression(string status)
         {
             lock (s_lock)

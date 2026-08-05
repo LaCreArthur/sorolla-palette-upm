@@ -1,5 +1,5 @@
 using System;
-using UnityEngine;
+using Sorolla.Palette.Health;
 
 #if SOROLLA_FACEBOOK_ENABLED
 using System.Collections.Generic;
@@ -131,29 +131,26 @@ namespace Sorolla.Palette.Adapters
                 return;
             }
 
-            if (!ContainsAppId(result))
+            string appId = NormalizeAppId(FB.AppId);
+            FacebookRegistrationResult registration =
+                FacebookPlatformRegistration.Classify(result.RawResult, appId, CurrentGraphPlatform);
+
+            // Unverified absorbs what used to be two separate warnings (no app id proven, and no readable
+            // platform list): neither proves anything about registration, and they carried the same remedy.
+            if (registration.Verdict == FacebookRegistrationVerdict.Unverified)
             {
                 string detail = string.IsNullOrEmpty(result.RawResult)
-                    ? "Validation response did not include app id"
-                    : "Validation response did not include app id: " + SafeDetail(result.RawResult);
+                    ? "Validation response did not prove this app's platform registration"
+                    : "Validation response did not prove this app's platform registration: " + SafeDetail(result.RawResult);
                 PaletteLog.Warning($"{Tag} Validation warning: {detail}");
                 AdapterDiagnostics.Record(AdapterDiagnosticVendor.Facebook, AdapterDiagnosticStatus.Warning,
                     "auth_unverified", detail);
                 return;
             }
 
-            if (!TryCurrentPlatformRegistration(result.RawResult, out bool platformRegistered))
+            if (registration.Verdict == FacebookRegistrationVerdict.NotRegistered)
             {
-                const string detail = "Validation response did not include a readable supported_platforms list";
-                PaletteLog.Warning($"{Tag} Validation warning: {detail}");
-                AdapterDiagnostics.Record(AdapterDiagnosticVendor.Facebook, AdapterDiagnosticStatus.Warning,
-                    "platform_unverified", detail);
-                return;
-            }
-
-            if (!platformRegistered)
-            {
-                ReportProbeFailure($"{CurrentPlatformDisplayName} not registered on FB app {NormalizeAppId(FB.AppId)}");
+                ReportProbeFailure($"{CurrentPlatformDisplayName} not registered on FB app {appId}", "platform_missing");
                 return;
             }
 
@@ -161,14 +158,14 @@ namespace Sorolla.Palette.Adapters
                 "validated", "Initialized, app credentials validated, and current platform registered");
         }
 
-        private static void ReportProbeFailure(string detail)
+        private static void ReportProbeFailure(string detail, string code = "auth_error")
         {
             if (IsTlsCertificateFailure(detail))
                 detail = $"{detail} | device-clock suspect: device date {DateTime.Now:yyyy-MM-dd}; if this date is wrong, fix Settings -> General -> Date & Time -> Set Automatically, then restart - a wrong device clock makes vendors with near-expiry TLS certificates fail while others still work.";
 
             PaletteLog.Error($"{Tag} AuthError: {detail}");
             AdapterDiagnostics.Record(AdapterDiagnosticVendor.Facebook, AdapterDiagnosticStatus.Failed,
-                "auth_error", detail);
+                code, detail);
         }
 
         static bool IsTlsCertificateFailure(string detail)
@@ -180,60 +177,17 @@ namespace Sorolla.Palette.Adapters
                    || detail.IndexOf("cert ", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        // Graph vocabulary trap: FB Graph API supported_platforms uses IPHONE / IPAD / ANDROID.
-        // There is no "IOS" value - a correctly-provisioned iOS app registers as IPHONE and/or
-        // IPAD. This shipped once as a false "platform missing" report; compare against the
-        // Graph vocabulary here, keep "iOS" only for the human-facing message.
+        // Which platform this build is graded as. The Graph vocabulary itself (IPHONE / IPAD / ANDROID)
+        // lives solely in FacebookPlatformRegistration; only the human-facing name stays here.
 #if UNITY_IOS
-        private static readonly string[] s_iosGraphPlatforms = { "IPHONE", "IPAD" };
-
-        private static bool IsCurrentPlatformRegistered(string[] supportedPlatforms) =>
-            Array.IndexOf(supportedPlatforms, s_iosGraphPlatforms[0]) >= 0
-            || Array.IndexOf(supportedPlatforms, s_iosGraphPlatforms[1]) >= 0;
+        const FacebookPlatform CurrentGraphPlatform = FacebookPlatform.iOS;
 
         private static string CurrentPlatformDisplayName => "iOS";
 #else
-        private static bool IsCurrentPlatformRegistered(string[] supportedPlatforms) =>
-            Array.IndexOf(supportedPlatforms, "ANDROID") >= 0;
+        const FacebookPlatform CurrentGraphPlatform = FacebookPlatform.Android;
 
         private static string CurrentPlatformDisplayName => "ANDROID";
 #endif
-
-        [Serializable]
-        private class SupportedPlatformsResponse
-        {
-            public string[] supported_platforms;
-        }
-
-        private static bool TryCurrentPlatformRegistration(string rawResult, out bool registered)
-        {
-            registered = false;
-            if (string.IsNullOrEmpty(rawResult)) return false;
-            SupportedPlatformsResponse parsed;
-            try
-            {
-                parsed = JsonUtility.FromJson<SupportedPlatformsResponse>(rawResult);
-            }
-            catch (ArgumentException)
-            {
-                return false;
-            }
-            if (parsed?.supported_platforms == null) return false;
-            registered = IsCurrentPlatformRegistered(parsed.supported_platforms);
-            return true;
-        }
-
-        private static bool ContainsAppId(IGraphResult result)
-        {
-            string appId = NormalizeAppId(FB.AppId);
-            if (result.ResultDictionary != null
-                && result.ResultDictionary.TryGetValue("id", out object id)
-                && string.Equals(id?.ToString(), appId, StringComparison.Ordinal))
-                return true;
-
-            return !string.IsNullOrEmpty(result.RawResult)
-                && result.RawResult.Contains("\"id\":\"" + appId + "\"");
-        }
 
         private static string NormalizeAppId(string appId)
         {
@@ -303,37 +257,14 @@ namespace Sorolla.Palette.Adapters
             return SafeDetail(transportError);
         }
 
-        static string GraphMessage(string rawResult)
-        {
-            if (string.IsNullOrEmpty(rawResult)) return "";
-            try
-            {
-                var parsed = JsonUtility.FromJson<GraphErrorResponse>(rawResult);
-                return parsed?.error?.message ?? "";
-            }
-            catch (ArgumentException)
-            {
-                return "";
-            }
-        }
+        static string GraphMessage(string rawResult) =>
+            FacebookPlatformRegistration.TryGetGraphErrorMessage(rawResult, out string message) ? message : "";
 
         static string SafeDetail(string detail)
         {
             if (string.IsNullOrEmpty(detail)) return "Unknown";
             detail = detail.Replace('\n', ' ').Replace('\r', ' ');
             return detail.Length > 300 ? detail.Substring(0, 299) + "..." : detail;
-        }
-
-        [Serializable]
-        sealed class GraphErrorResponse
-        {
-            public GraphError error;
-        }
-
-        [Serializable]
-        sealed class GraphError
-        {
-            public string message;
         }
     }
 }

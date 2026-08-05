@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.3] - 2026-08-05
+
+Post-campaign fix batch from the v4.0 studio QA campaign.
+
+### Removed (breaking)
+
+- `Sorolla.Palette.Editor.MiniJson` is no longer public API. It moves to the internal
+  `Sorolla.Palette.Health` assembly as an internal type, so editor scripts that called
+  `MiniJson.Serialize`/`MiniJson.Deserialize` will no longer compile. It was never a documented part
+  of the SDK surface (the supported surface is the `Palette` facade) and it was only reachable
+  because the editor assembly is auto-referenced. No replacement is provided: use
+  `UnityEngine.JsonUtility`, `Newtonsoft.Json`, or your own parser. Flagged here because a patch
+  version is not where an API is normally withdrawn.
+
+### Changed
+
+- Facebook platform registration is now graded by ONE classifier shared by the editor check and the
+  runtime adapter. They previously carried divergent copies: a Graph response that proves the app id
+  but lists no platforms graded red in the editor (4.0.1 trust patch) and only yellow on device.
+  **It now grades red on device too** - a zero-platform Facebook app is a real integration failure,
+  and every native Graph/Login/attribution call from that build is rejected. Apps that showed a
+  yellow "platform unverified" warning may now show a red platform-registration failure.
+- The purchase-verification row no longer says "Not observed" when consent denial is the reason
+  nothing was attempted. Denied ad-storage consent disables Adjust, so the verification call never
+  happens; the row now says so instead of reading like a test purchase is still owed.
+- Readiness reports state the requirement reason for the mode they were produced in. Core
+  capabilities said "required in Full mode" even in Prototype reports, where they are required in
+  both modes.
+
+### Fixed
+
+- The greenlight CLI no longer terminates an interactive editor. It only exits the process in batch
+  mode; invoked from a running editor it logs the report path (or the failure) and leaves the
+  session alive.
+- The greenlight CLI no longer writes a report containing an unclaimed "Checking..." probe as an
+  Incomplete result. Probes that the settle pass claims are re-tested before the report is written,
+  within the existing timeout. Project auto-fixes now run once at entry rather than being repeated
+  every time an asynchronous probe settles.
+- The Input System diagnostics assembly is gated on the `com.unity.inputsystem` package being
+  present, not only on the `ENABLE_INPUT_SYSTEM` player-settings define. The define survives package
+  removal, which produced CS0234 compile errors in projects set to Input System (or Both) without
+  the package installed.
+
 ## [4.0.2] - 2026-08-05
 
 ### Changed

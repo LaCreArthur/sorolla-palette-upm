@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Sorolla.Palette.Editor;
+using Sorolla.Palette.Health;
 using UnityEngine;
 using UnityEngine.TestTools;
 

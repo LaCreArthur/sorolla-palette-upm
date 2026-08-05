@@ -1,4 +1,3 @@
-#if ENABLE_INPUT_SYSTEM
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
@@ -95,4 +94,3 @@ namespace Sorolla.Palette
         }
     }
 }
-#endif

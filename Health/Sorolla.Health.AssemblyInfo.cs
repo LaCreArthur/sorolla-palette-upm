@@ -5,5 +5,6 @@ using System.Runtime.CompilerServices;
 // when Vitals / the greenlight adapter actually consume the model; the friend grants are declared now so
 // that wiring needs no AssemblyInfo change.
 [assembly: InternalsVisibleTo("Sorolla.Runtime")]
+[assembly: InternalsVisibleTo("Sorolla.Adapters")]
 [assembly: InternalsVisibleTo("Sorolla.Editor")]
 [assembly: InternalsVisibleTo("Sorolla.Editor.Tests")]

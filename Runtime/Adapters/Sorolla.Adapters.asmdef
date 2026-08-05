@@ -1,7 +1,9 @@
 {
     "name": "Sorolla.Adapters",
     "rootNamespace": "Sorolla.Adapters",
-    "references": [],
+    "references": [
+        "Sorolla.Health"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

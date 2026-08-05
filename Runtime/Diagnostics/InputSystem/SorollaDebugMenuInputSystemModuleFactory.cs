@@ -1,4 +1,3 @@
-#if ENABLE_INPUT_SYSTEM
 using UnityEngine;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.Scripting;
@@ -19,4 +18,3 @@ namespace Sorolla.Palette
         }
     }
 }
-#endif

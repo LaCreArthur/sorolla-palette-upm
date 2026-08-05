@@ -1,12 +1,15 @@
 using System.Collections.Generic;
 using System.IO;
 
-namespace Sorolla.Palette.Editor
+namespace Sorolla.Palette.Health
 {
     /// <summary>
-    /// Minimal JSON serializer/deserializer for manifest.json manipulation
+    /// Minimal JSON serializer/deserializer. Lives in Sorolla.Health because it is the only assembly
+    /// both the Editor and the runtime adapters can reach, and it is engine-free: JsonUtility cannot be
+    /// used here, and it cannot distinguish an absent field from an unparseable body anyway, which is
+    /// exactly the distinction <see cref="FacebookPlatformRegistration"/> is built on.
     /// </summary>
-    public static class MiniJson
+    internal static class MiniJson
     {
         public static object Deserialize(string json)
         {
@@ -24,16 +27,28 @@ namespace Sorolla.Palette.Editor
             private const string WORD_BREAK = " \t\n\r{}[],:\"";
             
             private StringReader json;
-            
+
+            /// <summary>Set when input ran out inside an unterminated object or array.</summary>
+            private bool truncated;
+
             private Parser(string jsonString)
             {
                 json = new StringReader(jsonString);
             }
-            
+
             public static object Parse(string jsonString)
             {
                 var instance = new Parser(jsonString);
-                return instance.ParseValue();
+                object value = instance.ParseValue();
+
+                // A body that ends inside an unterminated structure is NOT valid JSON, and returning the
+                // partial table let callers read "this field is absent" out of "these bytes never
+                // arrived". Those are different facts: the Facebook classifier treats an absent
+                // supported_platforms field on an id-proven body as proof of zero registered platforms
+                // and grades it red, so a truncated response used to produce a confident red verdict on
+                // evidence that was merely cut short. Truncation now reports as unparseable, which every
+                // caller already handles.
+                return instance.truncated ? null : value;
             }
             
             private void Dispose()
@@ -84,11 +99,17 @@ namespace Sorolla.Palette.Editor
                 while (true)
                 {
                     SkipWhitespace();
-                    // EOF inside an object = truncated/malformed JSON. Return the partial table instead of
-                    // spinning forever: PeekChar() returns (char)-1 at EOF, which never equals '}' or ',', so
-                    // without this guard the loop re-parses "" keys endlessly at 100% CPU (a truncated
+                    // EOF inside an object = truncated/malformed JSON. Stop instead of spinning forever:
+                    // PeekChar() returns (char)-1 at EOF, which never equals '}' or ',', so without this
+                    // guard the loop re-parses "" keys endlessly at 100% CPU (a truncated
                     // google-services.json would hang the editor - surfaced by the Firebase config check).
-                    if (json.Peek() == -1) return table;
+                    // The flag is what turns the partial result into a parse failure at the top level;
+                    // returning here still provides the anti-hang guarantee.
+                    if (json.Peek() == -1)
+                    {
+                        truncated = true;
+                        return table;
+                    }
                     char nextChar = PeekChar();
 
                     if (nextChar == '}')
@@ -118,9 +139,13 @@ namespace Sorolla.Palette.Editor
                 while (true)
                 {
                     SkipWhitespace();
-                    // EOF inside an array = truncated/malformed JSON - return the partial array rather than
-                    // spinning on (char)-1, which never equals ']' or ',' (same infinite-loop class as ParseObject).
-                    if (json.Peek() == -1) return array;
+                    // EOF inside an array = truncated/malformed JSON - stop rather than spinning on
+                    // (char)-1, which never equals ']' or ',' (same infinite-loop class as ParseObject).
+                    if (json.Peek() == -1)
+                    {
+                        truncated = true;
+                        return array;
+                    }
                     char nextChar = PeekChar();
 
                     if (nextChar == ']')

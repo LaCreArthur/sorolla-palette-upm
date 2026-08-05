@@ -33,7 +33,9 @@ namespace Sorolla.Palette.Editor
                     ? "required package is absent; the package check owns the failure"
                     : "capability is not included in this mode");
             return state.Required
-                ? Required("included and required in Full mode")
+                ? Required(context.Mode == EvalMode.Full
+                    ? "included and required in Full mode"
+                    : "required in both modes")
                 : Optional("included optional capability");
         };
 

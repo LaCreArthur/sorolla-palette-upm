@@ -12,8 +12,15 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [
-        "ENABLE_INPUT_SYSTEM"
+        "ENABLE_INPUT_SYSTEM",
+        "SOROLLA_INPUTSYSTEM_PRESENT"
     ],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "",
+            "define": "SOROLLA_INPUTSYSTEM_PRESENT"
+        }
+    ],
     "noEngineReferences": false
 }

@@ -104,7 +104,7 @@ namespace Sorolla.Palette
             {
                 // The runtime Graph probe writes concrete credential/platform failures into detail.
                 // Classify those before the generic ladder so the row gives the concrete fix.
-                var diagnosis = FacebookFailureDiagnosis(facebookRowDetail);
+                var diagnosis = FacebookFailureDiagnosis(facebookRowDetail, snapshot.FacebookOutcome.Code);
                 AddDiagnosed(rows, "SDKs", "Facebook", facebookRowSeverity, facebookRowDetail, diagnosis);
             }
             else
@@ -204,7 +204,7 @@ namespace Sorolla.Palette
                     snapshot.PurchaseTrackingAttached ? "AttachPurchaseTracking wired" : "Waiting for store controller wiring");
                 AddObserved(rows, "Activity", "Purchase accepted", snapshot.PurchaseAcceptedCount > 0 ? SorollaDiagnosticSeverity.Pass : SorollaDiagnosticSeverity.Info,
                     snapshot.PurchaseAcceptedCount > 0 ? $"{snapshot.PurchaseAcceptedCount} purchase event(s)" : "No purchase observed");
-                AddPurchaseVerificationRow(rows, snapshot);
+                AddPurchaseVerificationRow(rows, snapshot, adjust);
                 AddPurchaseIssuesRow(rows, snapshot);
             }
 
@@ -342,10 +342,12 @@ namespace Sorolla.Palette
                 Add(rows, "Config", name, state);
         }
 
-        static void AddPurchaseVerificationRow(List<SorollaDiagnosticRow> rows, Snapshot snapshot)
+        static void AddPurchaseVerificationRow(List<SorollaDiagnosticRow> rows, Snapshot snapshot, CapabilityState adjust)
         {
             SorollaDiagnosticSeverity severity = PurchaseVerificationSeverity(snapshot);
-            string detail = PurchaseVerificationDetail(snapshot);
+            string detail = PurchaseVerificationDetail(
+                snapshot.PurchaseVerificationState, snapshot.PurchaseVerification,
+                adjust.Applicable, snapshot.ConsentSignalsKnown, snapshot.AdStorageConsent);
             if (severity == SorollaDiagnosticSeverity.Warning)
                 AddDiagnosed(rows, "Activity", "Purchase verification", severity, detail,
                     PurchaseVerificationFailureDiagnosis());
@@ -628,12 +630,25 @@ namespace Sorolla.Palette
             };
 
         /// <summary>The row detail, with the environment mismatch spelled out - the raw vendor code alone
-        /// reads like a failure to anyone who has not memorised it.</summary>
-        static string PurchaseVerificationDetail(Snapshot snapshot) =>
-            snapshot.PurchaseVerificationState == PurchaseVerificationState.EnvironmentMismatch
-                ? $"{snapshot.PurchaseVerification} - test purchase checked against the other Adjust environment; " +
-                  "the call round-tripped, the purchase itself is not verified"
-                : snapshot.PurchaseVerification;
+        /// reads like a failure to anyone who has not memorised it.
+        /// "Not observed" is ambiguous when consent denial is the reason nothing was attempted: the
+        /// verification call never happens because ConsentCoordinator disables Adjust from the same
+        /// ad-storage decision it records here. Derived at render time from the two existing owners
+        /// (the capability and the recorded consent signals) rather than recorded as new state, so
+        /// nothing races the adapter-outcome writer.</summary>
+        internal static string PurchaseVerificationDetail(
+            PurchaseVerificationState state, string recordedDetail,
+            bool adjustApplicable, bool consentSignalsKnown, bool adStorageConsent) =>
+            state switch
+            {
+                PurchaseVerificationState.EnvironmentMismatch =>
+                    $"{recordedDetail} - test purchase checked against the other Adjust environment; " +
+                    "the call round-tripped, the purchase itself is not verified",
+                PurchaseVerificationState.NotObserved
+                    when adjustApplicable && consentSignalsKnown && !adStorageConsent =>
+                    "Not attempted - Adjust disabled by denied consent",
+                _ => recordedDetail,
+            };
 
         // Firebase's own "not available" message is the single most common Fail this menu ever
         // shows (every editor playmode session, no native lib) and is a completely different fact
@@ -786,7 +801,7 @@ namespace Sorolla.Palette
         }
 #endif
 
-        static (string why, string signal, string fix) FacebookFailureDiagnosis(string detail)
+        static (string why, string signal, string fix) FacebookFailureDiagnosis(string detail, string code)
         {
             if (detail != null && detail.Contains("has been deleted"))
                 return FacebookDeletedAppDiagnosis(detail);
@@ -794,7 +809,9 @@ namespace Sorolla.Palette
                 return FacebookClientTokenMismatchDiagnosis(detail);
             if (detail != null && detail.Contains("App ID") && detail.Contains("is invalid"))
                 return FacebookInvalidAppIdDiagnosis(detail);
-            if (detail != null && detail.Contains("not registered on FB app"))
+            // The adapter already types this outcome; re-deriving it from the detail wording made the
+            // message text a third source of truth for a fact the snapshot carries directly.
+            if (code == "platform_missing")
                 return FacebookPlatformNotRegisteredDiagnosis(detail);
             if (IsTlsCertificateFailure(detail))
                 return FacebookDeviceClockSuspectDiagnosis(detail);

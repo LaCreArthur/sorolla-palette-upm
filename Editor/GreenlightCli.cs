@@ -19,6 +19,10 @@ namespace Sorolla.Palette.Editor
     ///     report carries real probe verdicts instead of Pending, writes the report, then
     ///     exits 0. Exits 1 when the report cannot be produced. Do not pass -quit: the entry point owns the
     ///     editor lifetime because the probe needs update pumping after -executeMethod returns.
+    ///
+    ///     The editor is only killed in batch mode. This method is reachable from an interactive editor
+    ///     (menu, test, manual -executeMethod), where exiting would take the user's session down with it;
+    ///     there it logs the outcome and leaves the editor running.
     /// </summary>
     public static class GreenlightCli
     {
@@ -35,12 +39,18 @@ namespace Sorolla.Palette.Editor
                          "sorolla-greenlight-report.txt");
             try
             {
-                RunChecks();
+                // Project mutation happens exactly once, here. The settle retries below only re-read
+                // state: an asynchronous probe settling is not a reason to repeat repairs on the project.
+                foreach (string repair in BuildValidator.ResolveRequiredPackages())
+                    Debug.Log($"[Palette] Greenlight CLI: auto-fixed {repair}");
+                foreach (string repair in BuildValidator.RunSafeAutoFixes())
+                    Debug.Log($"[Palette] Greenlight CLI: auto-fixed {repair}");
+                s_results = BuildValidator.RunAllChecks();
             }
             catch (Exception e)
             {
                 Debug.LogError($"[Palette] Greenlight CLI: check run failed: {e}");
-                EditorApplication.Exit(1);
+                Finish(1);
                 return;
             }
 
@@ -48,39 +58,69 @@ namespace Sorolla.Palette.Editor
             EditorApplication.update += WaitForProbeThenWrite;
         }
 
-        static void RunChecks()
-        {
-            foreach (string repair in BuildValidator.ResolveRequiredPackages())
-                Debug.Log($"[Palette] Greenlight CLI: auto-fixed {repair}");
-            foreach (string repair in BuildValidator.RunSafeAutoFixes())
-                Debug.Log($"[Palette] Greenlight CLI: auto-fixed {repair}");
-            s_results = BuildValidator.RunAllChecks();
-        }
+        /// <summary>
+        ///     Whether the CLI must keep waiting instead of writing the report. Pure so the settle
+        ///     sequencing is testable without an editor loop or a live probe.
+        /// </summary>
+        internal static bool ShouldKeepWaiting(bool probePending, double now, double deadline) =>
+            probePending && now < deadline;
+
+        static bool AnyProbePending() =>
+            GameAnalyticsCredentialValidator.Current.State ==
+            GameAnalyticsCredentialValidator.ProbeState.Pending ||
+            FacebookPlatformValidator.Current.State == FacebookPlatformValidator.ProbeState.Pending;
 
         static void WaitForProbeThenWrite()
         {
-            bool pending =
-                GameAnalyticsCredentialValidator.Current.State ==
-                GameAnalyticsCredentialValidator.ProbeState.Pending ||
-                FacebookPlatformValidator.Current.State == FacebookPlatformValidator.ProbeState.Pending;
-            if (pending && EditorApplication.timeSinceStartup < s_deadline)
-                return;
-
-            EditorApplication.update -= WaitForProbeThenWrite;
+            // The WHOLE body is guarded, including the settle-time check re-run. An exception escaping
+            // this update delegate would leave the handler subscribed and throw again every tick: a
+            // batch run would hang until an external timeout with no report and no exit code, which is
+            // worse than the failure it came from. Only the two early returns below leave the handler
+            // subscribed, and they are the deliberate "still waiting" path.
             try
             {
-                // Re-run so a settled (or timed-out) probe state reaches the report as evidence.
-                RunChecks();
+                if (ShouldKeepWaiting(AnyProbePending(), EditorApplication.timeSinceStartup, s_deadline))
+                    return;
+
+                // Nothing is Pending, but the validators also render "Checking..." for NotStarted, so an
+                // unclaimed probe would land in the report as Incomplete. Re-running the checks is what
+                // CLAIMS such a probe; if that claim put one back to Pending and there is budget left, keep
+                // waiting and discard this run. Waiting blanket-style on NotStarted instead would burn the
+                // full timeout on every prototype run whose validator never claims (missing credentials).
+                s_results = BuildValidator.RunAllChecks();
+                if (ShouldKeepWaiting(AnyProbePending(), EditorApplication.timeSinceStartup, s_deadline))
+                    return;
+
+                EditorApplication.update -= WaitForProbeThenWrite;
                 ReadinessReport report = GreenlightEvaluator.Evaluate(s_results);
                 File.WriteAllText(s_path, GreenlightReportExport.ToText(report));
                 Debug.Log($"[Palette] Greenlight CLI: report written to {s_path}");
-                EditorApplication.Exit(0);
+                Finish(0);
             }
             catch (Exception e)
             {
-                Debug.LogError($"[Palette] Greenlight CLI: report write failed: {e}");
-                EditorApplication.Exit(1);
+                // Unsubscribe FIRST: this is terminal for the run either way, and a repeat throw is the
+                // hang. Removing a handler that is already removed is a no-op, so the late-failure path
+                // (which unsubscribed above) is safe too.
+                EditorApplication.update -= WaitForProbeThenWrite;
+                Debug.LogError($"[Palette] Greenlight CLI: report generation failed: {e}");
+                Finish(1);
             }
+        }
+
+        /// <summary>
+        ///     Only batch mode owns the editor lifetime. Called from an interactive editor, exiting would
+        ///     kill the user's session, so the outcome is logged instead.
+        /// </summary>
+        static void Finish(int exitCode)
+        {
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(exitCode);
+                return;
+            }
+
+            Debug.Log($"[Palette] Greenlight CLI: finished with exit code {exitCode}; interactive editor left running.");
         }
 
         static string ArgAfter(string flag)

@@ -1,6 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using Sorolla.Palette.Health;
 using UnityEditor;
 using UnityEngine.Networking;
 
@@ -69,12 +68,6 @@ namespace Sorolla.Palette.Editor
 
         internal static ProbeResult Current => s_lastResult;
 
-        // Graph vocabulary trap: FB Graph API supported_platforms uses IPHONE / IPAD / ANDROID.
-        // There is no "IOS" value - a correctly-provisioned iOS app registers as IPHONE and/or
-        // IPAD. This shipped once as a false "platform missing" report; do not compare against
-        // "IOS" again. Human-facing messages still say "iOS" (ActivePlatformName below).
-        static readonly string[] s_iosGraphPlatforms = { "IPHONE", "IPAD" };
-
         // Normal-case display string (acceptance-pass follow-up, 2026-07-21: "ANDROID" was the one
         // outlier shouting case among every other studio-facing platform label). The Graph API's own
         // vocabulary is still all-caps ("ANDROID"), so the comparison below is case-insensitive rather
@@ -90,10 +83,10 @@ namespace Sorolla.Palette.Editor
         // result names its own platform, and the two disagree the moment the build target switches.
         static string OtherPlatformName(string platformName) => platformName == "iOS" ? "Android" : "iOS";
 
-        static bool IsRegistered(List<string> supportedPlatforms, string platformName) =>
-            platformName == "iOS"
-                ? s_iosGraphPlatforms.Any(supportedPlatforms.Contains)
-                : supportedPlatforms.Contains(platformName, StringComparer.OrdinalIgnoreCase);
+        // The only place the studio-facing display name is translated into the graded platform. The
+        // Graph vocabulary itself (IPHONE / IPAD / ANDROID) lives solely in FacebookPlatformRegistration.
+        static FacebookPlatform GradedPlatform(string platformName) =>
+            platformName == "iOS" ? FacebookPlatform.iOS : FacebookPlatform.Android;
 
         /// <summary>
         ///     Kicks off a Graph API probe for this app id/client token/active-platform combination if
@@ -113,7 +106,9 @@ namespace Sorolla.Palette.Editor
                 return;
 
             string accessToken = Uri.EscapeDataString(appId + "|" + clientToken);
-            string url = $"https://graph.facebook.com/{Uri.EscapeDataString(appId)}?fields=supported_platforms&access_token={accessToken}";
+            // id is requested explicitly (not left to Graph's default) so this response and the runtime
+            // adapter's feed FacebookPlatformRegistration exactly the same fields.
+            string url = $"https://graph.facebook.com/{Uri.EscapeDataString(appId)}?fields=id,supported_platforms&access_token={accessToken}";
 
             var request = UnityWebRequest.Get(url);
             request.timeout = TimeoutSeconds;
@@ -201,17 +196,17 @@ namespace Sorolla.Palette.Editor
                     $"Facebook Graph API request failed (HTTP {responseCode}). Re-run the check (Refresh) when online.", now);
             }
 
-            if (!TryGetSupportedPlatforms(body, appId, out List<string> supportedPlatforms))
+            FacebookRegistrationResult registration =
+                FacebookPlatformRegistration.Classify(body, appId, GradedPlatform(platformName));
+
+            if (registration.Verdict == FacebookRegistrationVerdict.Unverified)
             {
                 return new ProbeResult(ProbeState.Unreachable, appId, platformName,
                     "Facebook Graph API response could not be parsed. Re-run the check (Refresh) when online.",
                     now);
             }
 
-            string otherName = OtherPlatformName(platformName);
-            bool otherRegistered = IsRegistered(supportedPlatforms, otherName);
-
-            if (!IsRegistered(supportedPlatforms, platformName))
+            if (registration.Verdict == FacebookRegistrationVerdict.NotRegistered)
             {
                 return new ProbeResult(ProbeState.PlatformMissing, appId, platformName,
                     $"FB app {appId} has no {platformName} platform registered in the FB console.\n" +
@@ -221,9 +216,9 @@ namespace Sorolla.Palette.Editor
             // The verified detail names both platforms - the same zero-cost awareness the GameAnalytics group
             // caption carries. It states the other platform's registration without grading it: this build is
             // for one platform, and that is what the row judges.
-            string detail = otherRegistered
+            string detail = registration.OtherPlatformRegistered
                 ? $"Facebook app {appId} has Android + iOS platforms registered."
-                : $"Facebook app {appId}: {platformName} registered · {otherName} not registered.";
+                : $"Facebook app {appId}: {platformName} registered · {OtherPlatformName(platformName)} not registered.";
             return new ProbeResult(ProbeState.Verified, appId, platformName, detail, now);
         }
 
@@ -240,7 +235,7 @@ namespace Sorolla.Palette.Editor
         // here so the studio-facing fix text names the actual cause instead of a generic "rejected".
         static string CredentialErrorDetail(string appId, string body)
         {
-            string graphMessage = TryGetErrorMessage(body, out string msg) ? msg : null;
+            string graphMessage = FacebookPlatformRegistration.TryGetGraphErrorMessage(body, out string msg) ? msg : null;
 
             string cause = graphMessage != null && graphMessage.Contains("Application has been deleted")
                 ? $"Facebook app {appId} has been deleted from the developer console."
@@ -253,47 +248,5 @@ namespace Sorolla.Palette.Editor
             return cause + "\n  Facebook init will report AuthError; analytics and attribution silently stop reaching Facebook.";
         }
 
-        static bool TryGetErrorMessage(string body, out string message)
-        {
-            message = null;
-            if (string.IsNullOrEmpty(body)) return false;
-            if (!(MiniJson.Deserialize(body) is Dictionary<string, object> json)) return false;
-            if (!json.TryGetValue("error", out object rawError) || !(rawError is Dictionary<string, object> error)) return false;
-            if (!error.TryGetValue("message", out object rawMessage) || !(rawMessage is string s)) return false;
-            message = s;
-            return true;
-        }
-
-        /// <summary>
-        ///     A 200 response whose body carries no supported_platforms field means the app has NO
-        ///     platform registered at all - Graph omits the field entirely rather than returning an empty
-        ///     list. Reading that as a parse failure reported an unregistered app as merely unreachable,
-        ///     which is a false green (4.0.1 trust patch).
-        ///
-        ///     Field ABSENCE is only evidence of zero platforms when the body is proven to be THIS app's
-        ///     object, which is what the id check below establishes. Without it, any 200 that is not the
-        ///     app object - a 200-wrapped {"error":{...}}, a captive-portal {"status":"ok"}, or a
-        ///     permission-stripped response - would grade as "no platform registered" and fail the report on
-        ///     a fact never observed. Those stay parse failures, and so does a supported_platforms value
-        ///     that is not a list.
-        /// </summary>
-        static bool TryGetSupportedPlatforms(string body, string appId, out List<string> platforms)
-        {
-            platforms = new List<string>();
-            if (string.IsNullOrEmpty(body)) return false;
-
-            if (!(MiniJson.Deserialize(body) is Dictionary<string, object> json)) return false;
-            if (!json.TryGetValue("supported_platforms", out object raw))
-                return json.TryGetValue("id", out object rawId) && rawId is string id && id == appId;
-            if (!(raw is List<object> list)) return false;
-
-            foreach (object entry in list)
-            {
-                if (entry is string s)
-                    platforms.Add(s);
-            }
-
-            return true;
-        }
     }
 }

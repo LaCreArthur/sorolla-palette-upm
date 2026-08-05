@@ -261,6 +261,39 @@ namespace Sorolla.Palette.Editor.Tests
             Assert.IsTrue(row.Informational);
         }
 
+        /// <summary>
+        ///     The requirement reason is printed verbatim in the studio-facing report, so it must describe
+        ///     the mode the report was produced in. A Core capability is required in BOTH modes; the reason
+        ///     was hardcoded to "required in Full mode" regardless, which told every Prototype report that a
+        ///     Core row was a Full-mode obligation it could ignore.
+        /// </summary>
+        [Test]
+        public void CoreCapability_InPrototype_StatesItIsRequiredInBothModes()
+        {
+            ReadinessReport report = ReadinessEvaluator.Evaluate(
+                Context(EvalMode.Prototype, modules: SdkModule.GameAnalytics | SdkModule.Facebook),
+                new List<BuildValidator.ValidationResult> { Result(ReadinessChecks.GameAnalyticsSettings) });
+
+            ReadinessRow row = report.Rows.Single(r => r.Check == ReadinessChecks.GameAnalyticsSettings);
+
+            Assert.AreEqual(ReadinessRequirement.Required, row.Requirement);
+            Assert.AreEqual("required in both modes", row.RequirementReason);
+        }
+
+        /// <summary>Full mode keeps the Full-mode wording - the fix is mode-aware, not a blanket rename.</summary>
+        [Test]
+        public void CoreCapability_InFullMode_KeepsFullModeWording()
+        {
+            ReadinessReport report = ReadinessEvaluator.Evaluate(
+                Context(),
+                new List<BuildValidator.ValidationResult> { Result(ReadinessChecks.GameAnalyticsSettings) });
+
+            ReadinessRow row = report.Rows.Single(r => r.Check == ReadinessChecks.GameAnalyticsSettings);
+
+            Assert.AreEqual(ReadinessRequirement.Required, row.Requirement);
+            Assert.AreEqual("included and required in Full mode", row.RequirementReason);
+        }
+
         [Test]
         public void Export_PreservesSchemaAndStableIds()
         {
