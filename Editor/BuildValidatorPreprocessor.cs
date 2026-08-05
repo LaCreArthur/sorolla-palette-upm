@@ -35,13 +35,15 @@ namespace Sorolla.Palette.Editor
 
             if (failing.Count > 0)
             {
+                // LogWarning, not LogError: Unity counts an error logged during a build as a build
+                // failure, so LogError here would re-block the build through the back door.
                 foreach (ReadinessRow row in failing)
                 foreach (ReadinessFinding finding in row.Findings)
                     if (finding.Outcome == ReadinessOutcome.Fail)
-                        Debug.LogError($"[Palette BuildValidator] ERROR: {row.Check.Id}: {finding.Evidence}\n" +
-                                       $"  Fix: {finding.Fix}");
+                        Debug.LogWarning($"[Palette BuildValidator] LAUNCH BLOCKER: {row.Check.Id}: {finding.Evidence}\n" +
+                                         $"  Fix: {finding.Fix}");
 
-                Debug.LogError(
+                Debug.LogWarning(
                     $"[Palette BuildValidator] Launch readiness FAILED with {failing.Count} failing check(s). " +
                     "The build continues so it can reach stores and internal QA, but do NOT launch " +
                     "campaigns on it. Open Tools > Sorolla Palette SDK for details.");
