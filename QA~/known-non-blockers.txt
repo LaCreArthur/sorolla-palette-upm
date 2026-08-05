@@ -1,22 +1,15 @@
 # Known non-blocker patterns for Palette SDK QA captures.
 #
-# Provenance: derived from the `known-non-blockers:` block in the sorolla-docs
-# qa-greenlight skill's gates.yaml (platform/sdk/qa/gates.yaml), extracted here as a
-# plain grep-able data file so it ships version-pinned with the SDK. gates.yaml
-# remains the source of truth for the skill's own gate walk; this file is the
-# canonical copy for game repos / qa-gate.sh consumers that only need the pattern
-# list, not the full gate schema. Keep both in sync; edit gates.yaml's block first
-# for any Sorolla-side change, then mirror the pattern + note here.
+# This copy ships in the SDK package QA~/ and is version-pinned with the SDK: it is
+# the canonical pattern list for game repos / qa-gate.sh consumers.
 #
-# Format: one grep -E pattern per line (byte-identical to the gates.yaml
-# `known-non-blockers[].pattern` values, including regex escaping). Each pattern's
+# Format: one grep -E pattern per line (regex escaping included). Each pattern's
 # explanatory note is a single `#` comment line immediately above it. Lines
 # starting with # are comments/ignored by a plain pattern-list consumer.
 #
 # Usage: these are patterns that MAY legitimately appear in a healthy capture and
 # must NOT be treated as red flags / counted against a verdict on their own. They
-# are not currently wired into qa-gate.sh's verdict logic (that annotation work is
-# Phase 5 of the QA self-serve plan) — this file is data only for now.
+# are not currently wired into qa-gate.sh's verdict logic — this file is data only for now.
 
 # Codeless IAP noise (iOS)
 InAppPurchasing: IStoreService\.Connect called without a callback

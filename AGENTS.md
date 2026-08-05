@@ -28,7 +28,6 @@ GameAnalytics ≠ GA4. Never write "the GA spec said so" — write "the GA4 spec
 - Main public API: `Runtime/Palette.cs`
 - Auto-init entry point: `Runtime/SorollaBootstrapper.cs`
 - Public docs: `Documentation~/`
-- Internal docs: a separate private internal-docs repo (kept outside this public repo)
 
 ## Authoritative Docs
 
@@ -37,17 +36,16 @@ Read these before substantial changes:
 - `Documentation~/architecture.md` - SDK architecture, adapter pattern, DX-first API rules
 - `Documentation~/api-reference.md` - generated public API reference
 - `Documentation~/troubleshooting.md` - known integration failures
-- The internal SDK index, the current public-API risk queue, and the authoritative QA greenlight workflow live in a separate private internal-docs repo (not part of this public repo).
+- `Documentation~/agents.md` - autonomous integration-QA flow for a game using this SDK
 
 ## Internal Docs Routing
 
-This repo is **public**. Never commit internal working docs here: audits, remediation plans, QA checklists/prep notes, devlogs, refactor backlogs, risk analyses. They live in a separate private internal-docs repo. Public-facing docs for SDK consumers go in `Documentation~/` and `CHANGELOG.md` only. `.gitignore` blocks the known internal-doc patterns as a backstop, but the rule is by intent, not pattern: if a doc is not for SDK consumers, it does not get committed here.
+This repo is **public**. Never commit working docs here: audits, remediation plans, QA checklists/prep notes, devlogs, refactor backlogs, risk analyses. Docs for SDK consumers go in `Documentation~/` and `CHANGELOG.md` only. `.gitignore` blocks known working-doc patterns as a backstop, but the rule is by intent, not pattern: if a doc is not for SDK consumers, it does not get committed here.
 
 ## QA Product Boundary
 
-Before changing Editor validation, Vitals, coverage, verdicts, or QA transport, read the product
-north star in the private internal SDK docs. This section is the loaded guardrail, not a second
-specification:
+Hold to this product boundary before changing Editor validation, Vitals, coverage, verdicts, or
+QA transport:
 
 - Palette QA establishes SDK integration health, not general game ship state.
 - The Editor owns everything knowable before a build and safely auto-fixes deterministic issues.
@@ -127,7 +125,7 @@ When touching any method under `Runtime/Adapters/*/`*AdapterImpl.cs* (Firebase, 
 - Existing tests live under `Tests/Editor/`.
 - Public docs API reference is generated from XML comments; regenerate with `Tools~/build-docs.sh` when public XML docs change.
 - For build/integration confidence, use Unity and on-device QA rather than assuming compilation alone is enough.
-- For release validation of a game using this SDK, use the `qa-greenlight` skill/workflow (internal QA docs live in the separate private internal-docs repo).
+- For release validation of a game using this SDK, follow the autonomous QA flow in `Documentation~/agents.md` (Editor Launch Readiness, then the on-device QA bridge pass).
 
 ## Diagnostics Console Iteration Loop
 

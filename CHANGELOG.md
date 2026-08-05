@@ -349,7 +349,7 @@ report that carries every row plus the SDK commit of the checkout it was generat
 
 ## [3.18.3] - 2026-07-08
 
-Editor UI overhaul on top of 3.18.2. Editor-side: the Palette window (SorollaWindow) is fully rebuilt on UI Toolkit with a shared design-token system; runtime-side changes are confined to the debug console overlay's draw code/theme (no init, consent, analytics, ads, or QA-bridge logic touched). Design pass reviewed and accepted screen-by-screen by Arthur on 2026-07-08.
+Editor UI overhaul on top of 3.18.2. Editor-side: the Palette window (SorollaWindow) is fully rebuilt on UI Toolkit with a shared design-token system; runtime-side changes are confined to the debug console overlay's draw code/theme (no init, consent, analytics, ads, or QA-bridge logic touched). Design pass reviewed and accepted screen-by-screen on 2026-07-08.
 
 ### Added
 - **Design-token system** (`Editor/UI/tokens.uss` + `TOKENS.md`): status colors, radii, spacing, type scale as USS custom properties; background/text tokens derive from the live editor skin (dark verified; light implemented, pending human verification) instead of hardcoded values.
@@ -468,7 +468,7 @@ Diagnostics parity patch: Sorolla Vitals and `/qa/snapshot` now read the same ad
 Remote Config freshness is now first-class in the QA surfaces: the bridge snapshot and the on-device console report RC status from the authoritative `Palette.RemoteConfigStatus`, not from log scraping.
 
 ### Added
-- **`remote_config` block in `GET /qa/snapshot`**: `{ status, fetch_seen, fetch_success }`. `status` is `defaults` | `cached` | `live`, sourced from `Palette.RemoteConfigStatus` (verbose-independent, so it is correct on prod / non-verbose builds). Lets the qa-greenlight gate assert RC freshness on a release-candidate build instead of grepping suppressible logs. `fetch_seen` / `fetch_success` are secondary signals from the Firebase fetch-complete log and only reflect a Firebase fetch this session, so gate on `status`.
+- **`remote_config` block in `GET /qa/snapshot`**: `{ status, fetch_seen, fetch_success }`. `status` is `defaults` | `cached` | `live`, sourced from `Palette.RemoteConfigStatus` (verbose-independent, so it is correct on prod / non-verbose builds). Lets the release QA gate assert RC freshness on a release-candidate build instead of grepping suppressible logs. `fetch_seen` / `fetch_success` are secondary signals from the Firebase fetch-complete log and only reflect a Firebase fetch this session, so gate on `status`.
 
 ### Fixed
 - **Console "Remote Config" row no longer stalls at "Waiting for fetch" on a cached relaunch**: it was driven by the `Fetch complete` log scrape, which never matches the disk-cache load path (`Cached config available`), so a fetch-less relaunch read "Waiting for fetch" forever while values were being served from cache. It now reads `Palette.RemoteConfigStatus` directly (`Defaults` -> info, `Cached`/`Live` -> pass); the scraped fetch line stays as secondary detail.
@@ -1012,8 +1012,7 @@ DX-first pass on progression + economy APIs. Continues the `3.9.2` `TrackPurchas
 - **Firebase progression mapping**: `level_fail` added (was only `level_start`/`level_end`). Canonical level name built from progression parts (`"world3_level12"`)
 
 ### Documentation
-- Removed internal/AI files from repo (CLAUDE.md, ralph.md, bug reports, completed plans, AI agent reference)
-- Consolidated LEARNINGS.md into DEVLOG.md
+- Removed internal working files from the repo (agent context files, bug reports, completed plans)
 - Promoted architecture.md and dashboard-setup.md from internal/ to public docs
 - Updated api-reference.md, firebase guide, README, quick-start for v3.7.0 API
 

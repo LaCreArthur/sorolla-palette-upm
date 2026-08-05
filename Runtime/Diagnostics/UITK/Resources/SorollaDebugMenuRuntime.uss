@@ -1,6 +1,6 @@
 /* Runtime-safe design tokens for the UI Toolkit debug menu overlay (spike, phase 1). Values are
-   the EXACT tokens from the approved design source (Claude Design "Sorolla Vitals Mobile.dc.html"),
-   distilled in sorolla-docs platform/sdk/research/debug-menu-mockups-2026-07/design-tokens.md -
+   the EXACT tokens from the approved design source (the "Sorolla Vitals Mobile" mockup),
+   distilled into a design-token spec during the 2026-07 debug-menu mockup pass -
    these supersede the earlier "seed from editor tokens.uss" placeholder colors; the editor sheet
    is expected to converge toward these later, not the other way around. This sheet is deliberately
    standalone: it must load and render with zero project setup, so it does not @import the editor

@@ -136,7 +136,7 @@ namespace Sorolla.Palette
 
         /// <summary>
         ///     Coverage matrix rows for the Overview tab. ONLY derived from snapshot facts the bridge already
-        ///     serves (CaptureSnapshot/CaptureQaState) - never gates.yaml, which stays Sorolla-side. Never
+        ///     serves (CaptureSnapshot/CaptureQaState) - never the release-gate definitions, which stay Sorolla-side. Never
         ///     claims a gate "passed"; each row is an exercised/not-exercised fact plus, when not exercised, a
         ///     how-to-trigger hint.
         /// </summary>

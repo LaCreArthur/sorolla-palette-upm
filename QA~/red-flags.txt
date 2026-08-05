@@ -1,37 +1,31 @@
-# Provenance: this copy is version-pinned with the SDK (ships in QA~/ as of the
-# QA-self-serve Phase 2 change) and is the CANONICAL copy for this SDK version.
-# The sorolla-docs skill copy (platform/sdk/qa/protocols/red-flags.txt) is the
-# fallback for SDK pins older than this change (pre-3.19) or when no game-root
-# package copy is reachable. Keep both copies' patterns byte-identical; edit here
-# first, then mirror to the skill copy.
+# This copy ships in the SDK package QA~/ and is version-pinned with the SDK: it is
+# the canonical red-flag list for this SDK version.
 
-# SDK/vendor red-flag substrings — these MUST NOT appear in a greenlight run, and any
+# SDK/vendor red-flag substrings — these MUST NOT appear in a QA run, and any
 # hit is BINDING (it halts the run). Scope: SDK and vendor init/delivery failures only.
 # A game's own exceptions and content errors are NOT here: they are informational, they
 # live in game-exceptions.txt, and they never fail an SDK-scoped run (a game with its own
 # NullReferenceExceptions can still have a completely healthy SDK integration).
 # One substring per line. Lines starting with # are ignored.
-# Grep list the agent applies to a RAW capture (iOS devicectl /tmp/unity_ios_rolling.log
-# or Android logcat). No capture script auto-loads it (pymobiledevice3/ios_logs.py retired
-# cycle 0014). Usage:  grep -Ff <(grep -v '^#' protocols/red-flags.txt | grep -v '^$') <capture>
+# Grep list applied to a RAW capture (iOS devicectl console log or Android logcat).
+# Usage:  grep -Ff <(grep -v '^#' red-flags.txt | grep -v '^$') <capture>
 # (strip comments/blanks first: grep -Ff treats every line, including these comments,
-#  as a pattern; raw -Ff false-fired on 2 innocuous lines in the 2026-06-12 hungrysnake run)
-# Mirrored in protocols/verification-matrix.md §"Red flags".
+#  as a pattern; raw -Ff has false-fired on innocuous comment lines before)
 #
-# These are UNIVERSAL (apply to both QA-pass and release-ship). Context-sensitive
-# reds (e.g. "Sandbox" is OK in QA-pass but fails release-ship) live in
-# qa-pass.md / release-ship.md, not here.
+# These are UNIVERSAL (apply to both interim QA and release validation). Context-sensitive
+# reds (e.g. "Sandbox" is OK mid-development but fails a release build) live in the
+# release-gate definitions, not here.
 
 # SDK mode leaks
-# Prototype mode is valid for games.yaml mode=prototype qa-pass runs.
-# Full-mode and release-ship mode checks live in gates.yaml.
+# Prototype mode is valid for a prototype-mode game.
+# Full-mode and release-only checks live in the release-gate definitions.
 
 # Facebook app access token rejected (cred mismatch) or app invalid/deleted.
 # Real Android log shape is "errorCode: 190" (colon) inside the GraphResponse JSON.
 # The old "errorCode 190" (space) pattern NEVER matched a real capture and let a
-# broken FB init pass QA on wander-td/floatingfortress 2026-06-10. Match the JSON
-# shape and the human-readable forms, not a remembered shape. See history/incidents.md
-# 2026-06-15. iOS GraphResponse delimiter unverified: confirm against an iOS capture.
+# broken FB init pass QA on two games (2026-06-10). Match the JSON shape and the
+# human-readable forms, not a remembered shape.
+# iOS GraphResponse delimiter unverified: confirm against an iOS capture.
 errorCode: 190
 OAuthException
 Invalid OAuth access token signature
@@ -43,8 +37,7 @@ idfa 00000000-0000-0000-0000-000000000000
 # ATT-gating regression (v3.16.0): "ad_personalization=Granted while ATT denied" is a
 # CORRELATION across two log lines, NOT a single forbidden substring, so it is NOT listed
 # here — a bare grep for ad_personalization=Granted false-fires on every healthy ATT-allow
-# run. The check lives in verification-matrix.md (ATT <-> ad_personalization cross-check)
-# and gates.yaml (rf_att_denied_but_personalized, qa_att_deny_non_personalized). Verify:
+# run. That correlation check lives in the release-gate definitions, not this file. Verify:
 # any non-authorized ATT (att:2/att:1/att:0) MUST coincide with ad_personalization=Denied.
 
 # Firebase Core init failure — events silently dropped (appear in Vitals, never reach Firebase)
@@ -55,16 +48,15 @@ IABTCF_TCString=EMPTY
 
 # Game-owned patterns (FATAL EXCEPTION, NullReferenceException, InvalidKeyException) moved to
 # game-exceptions.txt 2026-07-23: they were binding here, and a game whose own code throws
-# produced a red SDK verdict with nothing SDK-side wrong (junkyard-survival false red).
+# produced a red SDK verdict with nothing SDK-side wrong (a false red on a live run).
 # The bare `<private>` pattern was deleted in the same pass: on a device-wide iOS capture it is
 # ordinary OS redaction, hundreds of thousands of hits, and it never described SDK state.
 
-# TLS failures (context: iOS 15.x on old QA device is known-acceptable,
-# see incidents.md 2026-04-23 TLS -9816)
+# TLS failures (context: iOS 15.x on an old QA device is known-acceptable)
 NSURLErrorDomain -1200
 errSSLFatalAlert
 
 # GameAnalytics silently dropping events while adapter reports ready
-# (boulderevolution iOS 2026-07-07: 8x drops 5+min in, snapshot said gameanalytics=ready;
-# GA was the SOLE analytics vendor in prototype => false-green risk)
+# (seen on a prototype-mode iOS run 2026-07-07: 8x drops 5+min in, snapshot said
+# gameanalytics=ready; GameAnalytics was the SOLE analytics vendor => false-green risk)
 event: SDK is not initialized

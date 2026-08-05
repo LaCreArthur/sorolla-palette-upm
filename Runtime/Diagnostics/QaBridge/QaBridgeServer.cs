@@ -9,8 +9,8 @@ using UnityEngine;
 namespace Sorolla.Palette
 {
     /// <summary>
-    ///     QA-only loopback HTTP bridge. Serves <c>GET /qa/snapshot</c> (structured SDK state) so the
-    ///     qa-greenlight agent asserts on JSON instead of grepping device logs. Reached over a USB
+    ///     QA-only loopback HTTP bridge. Serves <c>GET /qa/snapshot</c> (structured SDK state) so a
+    ///     QA agent asserts on JSON instead of grepping device logs. Reached over a USB
     ///     forward (<c>adb forward</c> / usbmux). Binds 127.0.0.1 only, never 0.0.0.0, so it never
     ///     trips the iOS Local Network prompt and is not reachable off-device.
     ///
