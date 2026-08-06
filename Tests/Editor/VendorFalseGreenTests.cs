@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Sorolla.Palette.Health;
+using Sorolla.Palette.Editor.UI;
 
 namespace Sorolla.Palette.Editor.Tests
 {
@@ -278,25 +279,21 @@ namespace Sorolla.Palette.Editor.Tests
             Assert.IsFalse(BuildValidator.HasAnyFirebaseModule(new Dictionary<string, object>()));
         }
 
-        /// <summary>
-        ///     Firebase config applicability has ONE owner - the catalog gate - and these are its three
-        ///     answers. The config producer used to carry a twin of this condition that could drift from it.
-        /// </summary>
-        [Test]
-        public void Firebase_ConfigApplicability_HasOneOwner()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void Firebase_ConfigApplicability_RequiresACompleteSuiteInEveryMode(bool isPrototype)
         {
+            EvalMode mode = isPrototype ? EvalMode.Prototype : EvalMode.Full;
             Assert.AreEqual(ReadinessRequirement.Required,
-                Applicability(EvalMode.Full, SdkModule.Firebase), "Full mode, complete suite");
+                Applicability(mode, SdkModule.Firebase), "complete suite");
             Assert.AreEqual(ReadinessRequirement.NotApplicable,
-                Applicability(EvalMode.Full, SdkModule.FirebaseApp), "Full mode, incomplete suite");
-            Assert.AreEqual(ReadinessRequirement.Optional,
-                Applicability(EvalMode.Prototype, SdkModule.FirebaseApp), "Prototype with Firebase");
+                Applicability(mode, SdkModule.FirebaseApp), "incomplete suite");
             Assert.AreEqual(ReadinessRequirement.NotApplicable,
-                Applicability(EvalMode.Prototype, SdkModule.None), "Prototype without Firebase");
+                Applicability(mode, SdkModule.None), "absent suite");
         }
 
         static ReadinessRequirement Applicability(EvalMode mode, SdkModule modules) =>
-            ReadinessChecks.FirebaseSuite(Context(modules, mode)).Value;
+            ReadinessChecks.FirebaseConfigAndroid.Requirement(Context(modules, mode)).Value;
 
         static ReadinessContext Context(SdkModule modules, EvalMode mode = EvalMode.Full) => new ReadinessContext
         {
@@ -340,26 +337,31 @@ namespace Sorolla.Palette.Editor.Tests
 
         /// <summary>
         ///     PINNING REGRESSION for the grading source: the Firebase config producer observes without
-        ///     asking whether its row applies, so on an incomplete Full suite it can emit an Error against a
+        ///     asking whether its row applies, so on an incomplete required suite it can emit an Error against a
         ///     row the catalog resolves NotApplicable. The report discards it - and because the build-log error pass
         ///     reads that same report, the discarded finding cannot surface at build time with nothing on screen to
         ///     explain it. Reading raw producer results is exactly the shape this pins shut.
         /// </summary>
-        [Test]
-        public void ProducerErrorOnANotApplicableRow_IsDiscardedAndNeverFails()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void PartialSuite_IsOwnedByRequiredPackagesWithoutDuplicateFirebaseFailure(bool isPrototype)
         {
+            EvalMode mode = isPrototype ? EvalMode.Prototype : EvalMode.Full;
             ReadinessReport report = ReadinessEvaluator.Evaluate(
-                // Full mode with FirebaseApp alone: an incomplete suite, which the package check owns.
-                Context(SdkModule.GameAnalytics | SdkModule.Facebook | SdkModule.FirebaseApp),
+                Context(SdkModule.GameAnalytics | SdkModule.Facebook | SdkModule.FirebaseApp, mode),
                 new List<BuildValidator.ValidationResult>
                 {
+                    Observed(ReadinessChecks.RequiredSdks, BuildValidator.ValidationStatus.Error,
+                        "Firebase modules missing."),
                     Observed(ReadinessChecks.FirebaseConfigAndroid, BuildValidator.ValidationStatus.Error,
                         "google-services.json not found."),
                 });
             ReadinessRow row = report.Rows.Single(r => r.Check == ReadinessChecks.FirebaseConfigAndroid);
 
             Assert.AreEqual(ReadinessDisposition.NotApplicable, row.Disposition);
-            Assert.IsEmpty(report.FailingRows);
+            CollectionAssert.AreEqual(
+                new[] { ReadinessChecks.RequiredSdks.Id },
+                report.FailingRows.Select(r => r.Check.Id).ToArray());
         }
 
         /// <summary>
@@ -379,6 +381,26 @@ namespace Sorolla.Palette.Editor.Tests
             CollectionAssert.AreEquivalent(
                 new[] { ReadinessChecks.FirebaseConfigAndroid.Id },
                 report.FailingRows.Select(r => r.Check.Id).ToList());
+        }
+
+        [Test]
+        public void MissingFirebaseConfig_IsAlwaysAnError()
+        {
+            BuildValidator.ValidationResult result = BuildValidator.MissingConfig(
+                ReadinessChecks.FirebaseConfigAndroid, "missing", "add it");
+
+            Assert.AreEqual(BuildValidator.ValidationStatus.Error, result.Status);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FirebaseVendorUi_HasNoOptionalOrManualInstallState(bool suiteInstalled)
+        {
+            VendorStatus status = VendorStatusProbe.ResolveFirebaseStatus(false, suiteInstalled);
+
+            Assert.IsFalse(status.Optional);
+            Assert.AreEqual(suiteInstalled ? VendorStatus.Phase.Pass : VendorStatus.Phase.Fail, status.State);
+            Assert.AreNotEqual("Install", status.ActionLabel);
         }
     }
 }

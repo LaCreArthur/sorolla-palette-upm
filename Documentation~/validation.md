@@ -103,5 +103,5 @@ Before uploading a soft-launch build:
 - [ ] `adjustSandboxMode` is **false**.
 - [ ] `verboseLogging` is **false** (auto-forced off in release builds regardless).
 - [ ] Mediation network test modes are off for production ad units.
-- [ ] No Launch Readiness error remains. Definite active-platform data loss grades red: missing/rejected GameAnalytics or Facebook credentials/platform registration, missing Full-mode AppLovin MAX ad units, the Adjust app token, and the active platform's Firebase config. Red errors never stop a build (early builds must be able to reach the stores), but do not launch campaigns while one remains.
+- [ ] No Launch Readiness error remains. Definite active-platform data loss grades red: missing/rejected GameAnalytics or Facebook credentials/platform registration, the required Firebase suite or active-platform config, missing Full-mode AppLovin MAX ad units, and the Adjust app token. Red errors never stop a build (early builds must be able to reach the stores), but do not launch campaigns while one remains.
 - [ ] Sorolla Vitals is green on a real device for every platform you ship.

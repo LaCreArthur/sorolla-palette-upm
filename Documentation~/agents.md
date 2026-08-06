@@ -12,7 +12,7 @@ Read this once per game repo before running QA. It assumes the SDK is already in
 
 Launch Readiness answers whether the project integration is ready to build. Read the live status in the window, not this doc's paraphrase of what it checks:
 
-1. **Static project checks** — one canonical catalog of 24 gates (mode, sandbox/dev flags, vendor config files, keystore, manifest, SDK pin), rendered inside the vendor group each belongs to plus a Build & Project group. Each check is its own gate: an error surfaces as a failing row, and a check that does not apply to the current mode/platform/installed-modules is excluded rather than forced (e.g. Adjust settings in Prototype, the Android keystore on an iOS build).
+1. **Static project checks** — one canonical catalog of 24 gates (mode, sandbox/dev flags, vendor config files, keystore, manifest, SDK pin), rendered inside the vendor group each belongs to plus a Build & Project group. Each check is its own gate: an error surfaces as a failing row, and a check that does not apply to the current mode/platform/installed-modules is excluded rather than forced (e.g. Adjust settings in Prototype, the Android keystore on an iOS build). Firebase package completeness and the active platform's config apply in both modes.
 2. **Editor probes** — live network calls that verify credentials against the vendor's own API, not just "a config file exists." Currently: Facebook Graph API platform probe, GameAnalytics credential probe. Each probe row states what it proved and what it didn't (see [dashboards/](dashboards/) for the scope of each).
 3. **Source-level integration review** — not rendered in the editor window. Run the `sorolla-sdk-integration-review` audit (source-only: event wiring, Palette API usage, config alignment) before the on-device pass, not instead of it. Ask your Sorolla contact if you don't have this skill/prompt.
 
@@ -73,7 +73,9 @@ Which gates are required, optional, or excluded is derived entirely from the tru
 
 What that means in practice:
 
-- **Mode drives applicability.** GameAnalytics and Facebook are required in both modes. Firebase and AppLovin MAX are required in Full and optional in Prototype (installed if you want them, never force-flagged if absent — matching the installer). Adjust is Full-only. A gate that does not apply to the current mode is excluded, not failed.
+- **Mode drives applicability.** Firebase, GameAnalytics, and Facebook are required in both modes.
+  AppLovin MAX is required in Full and optional in Prototype. Adjust is Full-only. A gate that does
+  not apply to the current mode is excluded, not failed.
 - **The active build target drives platform applicability.** The report judges one platform: the one Unity is set to build. Checks about the other platform are excluded and reappear when you switch the build target. Connected-device Vitals remains separate.
 - **Every gate is machine-observed.** A gate passes on a static project fact the SDK reads for itself, never on someone asserting it. Store-console setup, vendor dashboard registration, and consent-persistence-across-relaunch are still real requirements — they are verified in Sorolla's release QA against an actual device run, and are not rows in this window.
 - **Prototype is a first-class release path**, never a "pre-release" state. Being in Prototype is never itself a failure — Prototype ships for Facebook UA tests and publisher review builds.

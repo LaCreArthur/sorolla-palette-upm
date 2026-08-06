@@ -9,6 +9,9 @@ namespace Sorolla.Palette
 
         internal static CapabilityState Adjust(bool fullMode) => Resolve(fullMode, SdkModule.Adjust);
 
+        internal static CapabilityState FirebaseApp(bool fullMode) =>
+            Resolve(fullMode, SdkModule.FirebaseApp);
+
         internal static CapabilityState FirebaseAnalytics(bool fullMode) =>
             Resolve(fullMode, SdkModule.FirebaseAnalytics);
 

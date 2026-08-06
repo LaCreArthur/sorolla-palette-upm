@@ -15,7 +15,7 @@ Follow these instructions to prepare the build in prototype mode:
 |-----|----|
 | GameAnalytics | Create the game, paste Game Key + Secret Key, add level calls |
 | Facebook SDK | Create the app, paste App ID + Client Token |
-| Firebase (optional) | Install only when this Prototype needs Firebase analytics, Crashlytics, or Remote Config |
+| Firebase | Create Android/iOS apps and add the active platform's config file |
 
 ---
 
@@ -85,7 +85,7 @@ Full details: [Facebook SDK Setup](guides/facebook.md).
 
 ---
 
-## 5. Optional: Create Firebase Configs
+## 5. Create Firebase Configs
 
 1. Go to [Firebase Console](https://console.firebase.google.com/).
 2. Create a project and enable **Google Analytics**.
@@ -98,10 +98,8 @@ Assets/google-services.json
 Assets/GoogleService-Info.plist
 ```
 
-Skip this section when the Prototype does not need Firebase. In **Tools > Sorolla Palette SDK**,
-install Firebase from the Firebase row if it is needed, then press **Refresh** and confirm the
-Firebase group reports the config file for your active build target. Firebase becomes required in
-Full mode.
+Palette installs Firebase App, Analytics, Crashlytics, and Remote Config automatically. Press
+**Refresh** and confirm the Firebase group reports the config file for your active build target.
 
 Full details: [Firebase Setup](guides/firebase.md).
 
@@ -116,12 +114,11 @@ Confirm:
 - The current mode is **Prototype**.
 - GameAnalytics is configured.
 - Facebook SDK is configured.
-- If this Prototype uses Firebase, it is installed and the active platform config file is present.
+- Firebase is installed and the active platform config file is present.
 - The **Launch Readiness** verdict reads **HEALTHY**.
 
-Keep Prototype mode lean. MAX and Firebase are optional: when absent, their checks and test steps do
-not appear; when installed, Palette validates them fully. Do not install Adjust or Unity IAP for a
-Prototype that does not use them.
+Keep Prototype mode lean. AppLovin MAX remains optional and Adjust remains excluded. Do not install
+Adjust or Unity IAP for a Prototype that does not use them.
 
 ---
 

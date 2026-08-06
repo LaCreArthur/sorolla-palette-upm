@@ -2,7 +2,7 @@
 
 Analytics, Crashlytics, and Remote Config.
 
-> Firebase is required in Full mode and optional in Prototype. Install it from **Tools > Sorolla Palette SDK** when a Prototype needs Firebase Analytics, Crashlytics, or Remote Config.
+> Firebase App, Analytics, Crashlytics, and Remote Config are required in every Palette mode and install automatically with Palette.
 
 ---
 

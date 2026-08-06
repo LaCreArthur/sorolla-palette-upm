@@ -39,11 +39,11 @@ namespace Sorolla.Palette
     public class SorollaConfig : ScriptableObject
     {
         /// <summary>
-        ///     Prototype = GameAnalytics + Facebook, with Firebase and AppLovin MAX optional.
-        ///     Full = Core + MAX + Adjust + Firebase. Set via the Configuration window.
+        ///     Prototype = GameAnalytics + Facebook + Firebase.
+        ///     Full = Prototype + MAX + Adjust. Set via the Configuration window.
         /// </summary>
         [Header("Mode")]
-        [Tooltip("Prototype = GameAnalytics + Facebook | Full = Prototype + Firebase + MAX + Adjust")]
+        [Tooltip("Prototype = GameAnalytics + Facebook + Firebase | Full = Prototype + MAX + Adjust")]
         public bool isPrototypeMode = true;
 
         /// <summary>Rewarded ad unit IDs from AppLovin MAX (one per platform).</summary>
@@ -87,7 +87,6 @@ namespace Sorolla.Palette
         [Tooltip("Enable detailed SDK diagnostics and vendor debug logs. Forced OFF in release builds; production-safe health logs remain on.")]
         public bool verboseLogging;
 
-        // Note: Firebase modules (Analytics, Crashlytics, Remote Config) are always enabled
-        // when Firebase is installed. No toggles needed as of v3.1.0.
+        // Firebase modules (Analytics, Crashlytics, Remote Config) are required and always enabled.
     }
 }

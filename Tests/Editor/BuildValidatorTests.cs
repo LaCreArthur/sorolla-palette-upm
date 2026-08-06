@@ -12,6 +12,42 @@ namespace Sorolla.Palette.Editor.Tests
     [TestFixture]
     public class BuildValidatorTests
     {
+        [TestCase(true)]
+        [TestCase(false)]
+        public void FirebaseSuite_IsRequiredInEveryMode(bool isPrototype)
+        {
+            foreach (SdkId id in new[]
+            {
+                SdkId.FirebaseApp,
+                SdkId.FirebaseAnalytics,
+                SdkId.FirebaseCrashlytics,
+                SdkId.FirebaseRemoteConfig,
+            })
+            {
+                SdkInfo sdk = SdkRegistry.All[id];
+                Assert.AreEqual(SdkRequirement.Core, sdk.Requirement, id.ToString());
+                Assert.IsTrue(sdk.IsRequiredFor(isPrototype), id.ToString());
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void CompositeFirebaseCapability_RequiresTheCompleteSuite(bool isPrototype)
+        {
+            EvalMode mode = isPrototype ? EvalMode.Prototype : EvalMode.Full;
+            CapabilityState partial =
+                CapabilityPolicy.Resolve(mode, SdkModule.FirebaseApp, SdkModule.Firebase);
+            CapabilityState complete =
+                CapabilityPolicy.Resolve(mode, SdkModule.Firebase, SdkModule.Firebase);
+
+            Assert.IsTrue(partial.Required);
+            Assert.IsFalse(partial.Included);
+            Assert.IsFalse(partial.Applicable);
+            Assert.IsTrue(complete.Required);
+            Assert.IsTrue(complete.Included);
+            Assert.IsTrue(complete.Applicable);
+        }
+
         // ── Per-check isolation: one thrown check may not take the pass down with it ──
 
         /// <summary>

@@ -19,6 +19,7 @@ namespace Sorolla.Palette
             bool fullMode = IsFullMode(config, snapshot);
             CapabilityState ads = SorollaRuntimeCapabilities.Max(fullMode);
             CapabilityState adjust = SorollaRuntimeCapabilities.Adjust(fullMode);
+            CapabilityState firebaseApp = SorollaRuntimeCapabilities.FirebaseApp(fullMode);
             CapabilityState firebaseAnalytics = SorollaRuntimeCapabilities.FirebaseAnalytics(fullMode);
             CapabilityState firebaseCrashlytics = SorollaRuntimeCapabilities.FirebaseCrashlytics(fullMode);
             CapabilityState firebaseRemoteConfig = SorollaRuntimeCapabilities.FirebaseRemoteConfig(fullMode);
@@ -133,7 +134,7 @@ namespace Sorolla.Palette
 #endif
 
             AddMissingFirebaseSuiteRow(
-                rows, firebaseAnalytics, firebaseCrashlytics, firebaseRemoteConfig);
+                rows, firebaseApp, firebaseAnalytics, firebaseCrashlytics, firebaseRemoteConfig);
 
 #if FIREBASE_ANALYTICS_INSTALLED
             bool firebaseCoreReady = snapshot.FirebaseCoreReady || FirebaseCoreManager.IsInitialized;
@@ -234,15 +235,17 @@ namespace Sorolla.Palette
                 MissingAdUnitDiagnosis("interstitial"));
         }
 
-        static void AddMissingFirebaseSuiteRow(
+        internal static void AddMissingFirebaseSuiteRow(
             List<SorollaDiagnosticRow> rows,
+            CapabilityState app,
             CapabilityState analytics,
             CapabilityState crashlytics,
             CapabilityState remoteConfig)
         {
-            if (!analytics.Required && !crashlytics.Required && !remoteConfig.Required) return;
+            if (!app.Required && !analytics.Required && !crashlytics.Required && !remoteConfig.Required) return;
 
-            var missing = new List<string>(3);
+            var missing = new List<string>(4);
+            if (!app.Included) missing.Add("App");
             if (!analytics.Included) missing.Add("Analytics");
             if (!crashlytics.Included) missing.Add("Crashlytics");
             if (!remoteConfig.Included) missing.Add("Remote Config");
@@ -251,9 +254,9 @@ namespace Sorolla.Palette
             string detail = "Missing required modules: " + string.Join(", ", missing);
             AddDiagnosed(rows, "Firebase", "Firebase suite", SorollaDiagnosticSeverity.Fail, detail,
                 (
-                    "Full mode requires the supported Firebase module suite, but this build includes only part of it.",
+                    "Every Palette mode requires the supported Firebase module suite, but this build includes only part of it.",
                     "Missing modules cannot initialize or receive the SDK events assigned to them.",
-                    "In Tools > Sorolla Palette SDK, install the missing Firebase modules, then refresh validation."
+                    "In Tools > Sorolla Palette SDK, press Refresh to auto-repair the Firebase suite."
                 ));
         }
 
@@ -397,7 +400,7 @@ namespace Sorolla.Palette
             if (config == null && !snapshot.ModeKnown) return "Config missing / mode unknown";
             return IsFullMode(config, snapshot)
                 ? "Full mode (AppLovin MAX + Adjust + GameAnalytics + Facebook + Firebase)"
-                : "Prototype mode (GameAnalytics + Facebook; optional capabilities validated when included)";
+                : "Prototype mode (GameAnalytics + Facebook + Firebase)";
         }
 
         static bool IsFullMode(SorollaConfig config, Snapshot snapshot)

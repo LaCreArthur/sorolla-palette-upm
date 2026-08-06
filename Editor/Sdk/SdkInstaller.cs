@@ -67,8 +67,8 @@ namespace Sorolla.Palette.Editor
         ///     Restores the scoped registry of every INSTALLED package that has one, and returns the SDKs
         ///     whose entry it had to put back.
         ///
-        ///     Installed, not required: an optional capability that is present (Firebase modules in
-        ///     Prototype, MAX kept across a mode switch) resolves from the wrong registry - or not at all -
+        ///     Installed, not required: an optional capability that is present (MAX kept across a mode
+        ///     switch) resolves from the wrong registry - or not at all -
         ///     without its scope, and the readiness check reports a missing registry for ANY installed
         ///     package. Covering only the required set left those rows with a hand-edit of manifest.json as
         ///     their only way out, on a repair Palette can make deterministically.
@@ -260,33 +260,6 @@ namespace Sorolla.Palette.Editor
                 Debug.LogWarning($"[Palette] Could not clear package cache: {e.Message}");
                 // Non-fatal - installation may still succeed
             }
-        }
-
-        /// <summary>
-        ///     Install Firebase packages (App + Analytics + Crashlytics + Remote Config)
-        ///     Also enables all Firebase modules in SorollaConfig for immediate use.
-        /// </summary>
-        public static void InstallFirebase()
-        {
-            SdkInfo appInfo = SdkRegistry.All[SdkId.FirebaseApp];
-            SdkInfo analyticsInfo = SdkRegistry.All[SdkId.FirebaseAnalytics];
-            SdkInfo crashlyticsInfo = SdkRegistry.All[SdkId.FirebaseCrashlytics];
-            SdkInfo remoteConfigInfo = SdkRegistry.All[SdkId.FirebaseRemoteConfig];
-
-            Debug.Log("[Palette] Installing Firebase (App + Analytics + Crashlytics + Remote Config)...");
-
-            // Clear stale cache to prevent "Directory not empty" errors from concurrent git clones
-            ClearFirebasePackageCache();
-
-            ManifestManager.AddDependencies(new Dictionary<string, string>
-            {
-                { appInfo.PackageId, appInfo.DependencyValue },
-                { analyticsInfo.PackageId, analyticsInfo.DependencyValue },
-                { crashlyticsInfo.PackageId, crashlyticsInfo.DependencyValue },
-                { remoteConfigInfo.PackageId, remoteConfigInfo.DependencyValue },
-            });
-
-            Debug.Log("[Palette] Firebase added to manifest. Package Manager will resolve.");
         }
     }
 }

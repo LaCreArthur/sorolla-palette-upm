@@ -47,12 +47,12 @@ namespace Sorolla.Palette.Health
             {
                 case SdkModule.GameAnalytics:
                 case SdkModule.Facebook:
-                    return CapabilityRule.Core;
                 case SdkModule.FirebaseApp:
                 case SdkModule.FirebaseAnalytics:
                 case SdkModule.FirebaseCrashlytics:
                 case SdkModule.FirebaseRemoteConfig:
                 case SdkModule.Firebase:
+                    return CapabilityRule.Core;
                 case SdkModule.AppLovinMax:
                     return CapabilityRule.FullRequired;
                 case SdkModule.Adjust:
@@ -71,7 +71,7 @@ namespace Sorolla.Palette.Health
         internal static CapabilityState Resolve(
             EvalMode mode, SdkModule installedModules, SdkModule module, CapabilityRule rule)
         {
-            bool installed = (installedModules & module) != 0;
+            bool installed = (installedModules & module) == module;
             bool required = rule == CapabilityRule.Core ||
                             (mode == EvalMode.Full &&
                              (rule == CapabilityRule.FullRequired || rule == CapabilityRule.FullOnly));

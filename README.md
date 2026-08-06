@@ -21,7 +21,7 @@ Fastest path to a useful studio build:
 
 ### Full Mode
 
-Use this when Prototype analytics are already working and the game is ready for ads, attribution, consent, and revenue validation.
+Use this when Prototype analytics are already working and the game is ready to add ads, attribution, consent, and revenue validation.
 
 [Migrate to Full mode](https://sorolla-studio.github.io/sorolla-palette/switching-to-full.html)
 

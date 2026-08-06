@@ -167,7 +167,7 @@ namespace Sorolla.Palette.Editor
                 id: SdkId.FirebaseApp,
                 name: "Firebase App",
                 packageId: "com.google.firebase.app",
-                requirement: SdkRequirement.FullRequired,
+                requirement: SdkRequirement.Core,
                 detectionAssemblies: new[] { "Firebase.App" },
                 detectionTypes: new[] { "Firebase.FirebaseApp, Firebase.App" },
                 installUrl: "https://github.com/LaCreArthur/unity-firebase-app.git?path=FirebaseApp#" + FIREBASE_VERSION
@@ -176,7 +176,7 @@ namespace Sorolla.Palette.Editor
                 id: SdkId.FirebaseAnalytics,
                 name: "Firebase Analytics",
                 packageId: "com.google.firebase.analytics",
-                requirement: SdkRequirement.FullRequired,
+                requirement: SdkRequirement.Core,
                 detectionAssemblies: new[] { "Firebase.Analytics" },
                 detectionTypes: new[] { "Firebase.Analytics.FirebaseAnalytics, Firebase.Analytics" },
                 installUrl: "https://github.com/LaCreArthur/unity-firebase-app.git?path=FirebaseAnalytics#" + FIREBASE_VERSION
@@ -185,7 +185,7 @@ namespace Sorolla.Palette.Editor
                 id: SdkId.FirebaseCrashlytics,
                 name: "Firebase Crashlytics",
                 packageId: "com.google.firebase.crashlytics",
-                requirement: SdkRequirement.FullRequired,
+                requirement: SdkRequirement.Core,
                 detectionAssemblies: new[] { "Firebase.Crashlytics" },
                 detectionTypes: new[] { "Firebase.Crashlytics.Crashlytics, Firebase.Crashlytics" },
                 installUrl: "https://github.com/LaCreArthur/unity-firebase-app.git?path=FirebaseCrashlytics#" + FIREBASE_VERSION
@@ -194,7 +194,7 @@ namespace Sorolla.Palette.Editor
                 id: SdkId.FirebaseRemoteConfig,
                 name: "Firebase Remote Config",
                 packageId: "com.google.firebase.remote-config",
-                requirement: SdkRequirement.FullRequired,
+                requirement: SdkRequirement.Core,
                 detectionAssemblies: new[] { "Firebase.RemoteConfig" },
                 detectionTypes: new[] { "Firebase.RemoteConfig.FirebaseRemoteConfig, Firebase.RemoteConfig" },
                 installUrl: "https://github.com/LaCreArthur/unity-firebase-app.git?path=FirebaseRemoteConfig#" + FIREBASE_VERSION

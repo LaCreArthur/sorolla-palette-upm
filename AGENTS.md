@@ -28,6 +28,8 @@ GameAnalytics ≠ GA4. Never write "the GA spec said so" — write "the GA4 spec
 - Main public API: `Runtime/Palette.cs`
 - Auto-init entry point: `Runtime/SorollaBootstrapper.cs`
 - Public docs: `Documentation~/`
+- Mode baseline: Firebase App/Analytics/Crashlytics/Remote Config, GameAnalytics, and Facebook are
+  required in Prototype and Full. Full additionally requires AppLovin MAX and Adjust.
 
 ## Authoritative Docs
 

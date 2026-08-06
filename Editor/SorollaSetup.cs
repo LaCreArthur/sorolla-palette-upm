@@ -15,7 +15,7 @@ namespace Sorolla.Palette.Editor
     [InitializeOnLoad]
     internal static class SorollaSetup
     {
-        const string SetupVersion = "v7"; // v3.1.0: Firebase required in Full, optional in Prototype
+        const string SetupVersion = "v8"; // v4.0.4: Firebase suite required in both modes
 
         static SorollaSetup()
         {

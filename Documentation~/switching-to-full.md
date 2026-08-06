@@ -18,7 +18,6 @@ Full mode adds:
 | Ads | AppLovin MAX with mediation | Add ad placements and validate fill |
 | Attribution | Adjust install, session, ad revenue, and purchase attribution | Use sandbox during QA, production before launch |
 | Consent | GDPR CMP and iOS ATT flow | Publish consent message, add privacy settings access |
-| Firebase | Analytics, Crashlytics, Remote Config become required | Add platform config files |
 | Revenue | Purchases can fan out to Adjust, Firebase, and GameAnalytics | Wire Unity IAP once if the game sells IAP |
 
 Start from [Prototype Mode](quick-start.md). Do not migrate a build that has not already passed Prototype validation.
@@ -51,8 +50,8 @@ If any package name, bundle ID, app token, or ad unit belongs to a different app
 4. Reopen **Tools > Sorolla Palette SDK** and check the **Launch Readiness** verdict.
 
 Launch Readiness blocks a build when it has proved definite active-platform data loss: missing or
-rejected GameAnalytics/Facebook credentials or platform registration, missing Full-mode AppLovin MAX
-ad units, the Adjust app token, or the active platform's Firebase config. A vendor endpoint that
+rejected GameAnalytics/Facebook credentials or platform registration, missing AppLovin MAX ad
+units, the Adjust app token, or the active platform's Firebase config. A vendor endpoint that
 cannot be reached remains incomplete rather than blocking or passing.
 
 Launch Readiness judges the platform your build target is set to. Rows for the other platform are
@@ -67,11 +66,11 @@ If defines or packages look stale after switching, run **Palette > Run Setup (Fo
 
 ## 3. Configure Full-Mode Keys
 
-The Prototype keys stay in place. Full mode needs these additional values:
+The Prototype Firebase, GameAnalytics, and Facebook setup stays in place. Full mode needs these
+additional values:
 
 | SDK | Required | What to enter |
 |-----|----------|---------------|
-| Firebase | Yes | `google-services.json` and `GoogleService-Info.plist` in `Assets/` |
 | AppLovin MAX | Yes | SDK Key plus Rewarded, Interstitial, and optional Banner ad unit IDs |
 | Adjust | Yes | App Token and Purchase Event Token. Use sandbox only in a Development Build for QA; turn it off and rebuild for release |
 
@@ -79,7 +78,6 @@ Use the setup guides only when you need dashboard-level detail:
 
 - [Ads Setup](guides/ads.md)
 - [Adjust Setup](guides/adjust.md)
-- [Firebase Setup](guides/firebase.md)
 
 ---
 

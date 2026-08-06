@@ -155,39 +155,28 @@ namespace Sorolla.Palette.Editor.UI
         /// "Configured" on a stray file while the authoritative row disagreed.</summary>
         VendorStatus Firebase()
         {
-            bool isRequired = !SorollaSettings.IsPrototype;
             bool isInstalling = _installingPackages.Contains("com.google.firebase.app") ||
                                 _installingPackages.Contains("com.google.firebase.analytics") ||
                                 _installingPackages.Contains("com.google.firebase.crashlytics") ||
                                 _installingPackages.Contains("com.google.firebase.remote-config");
+            bool suiteInstalled = SdkDetector.IsInstalled(SdkId.FirebaseApp) &&
+                                  SdkDetector.IsInstalled(SdkId.FirebaseAnalytics) &&
+                                  SdkDetector.IsInstalled(SdkId.FirebaseCrashlytics) &&
+                                  SdkDetector.IsInstalled(SdkId.FirebaseRemoteConfig);
+            return ResolveFirebaseStatus(isInstalling, suiteInstalled);
+        }
 
+        internal static VendorStatus ResolveFirebaseStatus(bool isInstalling, bool suiteInstalled)
+        {
             if (isInstalling)
                 return Installing();
-
-            if (!SdkDetector.IsInstalled(SdkId.FirebaseAnalytics))
-            {
-                VendorStatus state = isRequired
-                    ? new VendorStatus { State = VendorStatus.Phase.Fail, Text = "Auto-installs on mode switch" }
-                    : new VendorStatus { State = VendorStatus.Phase.NotInstalled, Optional = true };
-                if (!isRequired) // Prototype - Full mode auto-installs Firebase, so no manual Install button
-                {
-                    state.ActionLabel = "Install";
-                    state.ActionEnabled = !EditorApplication.isPlaying;
-                    state.Action = () =>
-                    {
-                        SdkInstaller.Install(SdkId.FirebaseApp);
-                        SdkInstaller.Install(SdkId.FirebaseAnalytics);
-                        SdkInstaller.Install(SdkId.FirebaseCrashlytics);
-                        SdkInstaller.Install(SdkId.FirebaseRemoteConfig);
-                    };
-                }
-                return state;
-            }
-
+            if (!suiteInstalled)
+                return new VendorStatus { State = VendorStatus.Phase.Fail, Text = "Auto-installs on Refresh" };
             return new VendorStatus
             {
-                State = VendorStatus.Phase.Pass, Optional = !isRequired,
-                ActionLabel = "Console", Action = () => Application.OpenURL("https://console.firebase.google.com/"),
+                State = VendorStatus.Phase.Pass,
+                ActionLabel = "Console",
+                Action = () => Application.OpenURL("https://console.firebase.google.com/"),
             };
         }
 

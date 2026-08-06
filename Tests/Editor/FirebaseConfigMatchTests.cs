@@ -14,8 +14,8 @@ namespace Sorolla.Palette.Editor.Tests
     ///     Mismatch, or Unparseable - the wrong-game config incident is detected at exactly this layer. That a
     ///     Firebase config Error then reaches the report as a failure (and that it is discarded where the row does
     ///     not apply) is pinned in VendorFalseGreenTests. The one-line mapping inside the editor check
-    ///     (Mismatch → Error, several/unreadable/unparseable → Unverifiable, absent → Error in Full and
-    ///     Warning in Prototype) needs PlayerSettings and the project's own config files, so it has no unit
+    ///     (Mismatch or absent → Error, several/unreadable/unparseable → Unverifiable) needs PlayerSettings
+    ///     and the project's own config files, so it has no unit
     ///     fixture and is exercised by the window walk instead.
     /// </summary>
     [TestFixture]

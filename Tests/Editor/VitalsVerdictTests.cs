@@ -124,6 +124,29 @@ namespace Sorolla.Palette.Editor.Tests
             Assert.IsFalse(adjust.Applicable);
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void MissingFirebaseModules_FailVitalsInEveryMode(bool isPrototype)
+        {
+            EvalMode mode = isPrototype ? EvalMode.Prototype : EvalMode.Full;
+            var rows = new List<SorollaDiagnosticRow>();
+            CapabilityState app = CapabilityPolicy.Resolve(
+                mode, SdkModule.None, SdkModule.FirebaseApp);
+            CapabilityState analytics = CapabilityPolicy.Resolve(
+                mode, SdkModule.None, SdkModule.FirebaseAnalytics);
+            CapabilityState crashlytics = CapabilityPolicy.Resolve(
+                mode, SdkModule.None, SdkModule.FirebaseCrashlytics);
+            CapabilityState remoteConfig = CapabilityPolicy.Resolve(
+                mode, SdkModule.None, SdkModule.FirebaseRemoteConfig);
+
+            SorollaDiagnostics.AddMissingFirebaseSuiteRow(
+                rows, app, analytics, crashlytics, remoteConfig);
+
+            Assert.AreEqual(1, rows.Count);
+            Assert.AreEqual(SorollaDiagnosticSeverity.Fail, rows[0].Severity);
+            StringAssert.Contains("Every Palette mode requires", rows[0].Why);
+        }
+
         // ── TEST YOUR GAME rows: the one list behind both the matrix and NOT PROVEN ──
 
         static readonly CapabilityState Excluded = new CapabilityState(false, false, false);

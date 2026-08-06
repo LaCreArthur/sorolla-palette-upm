@@ -44,7 +44,7 @@ namespace Sorolla.Palette.Editor
             else
             {
                 // No Firebase at all: an absence notice, not a pass - nothing was verified here. There is
-                // deliberately no "required in Full mode" Warning branch: the Required SDKs check owns that
+                // deliberately no mode-specific Warning branch: the Required SDKs check owns that
                 // failure, and this row's own gate resolves NotApplicable when the suite is absent, so a
                 // warning produced here would render nowhere at all.
                 results.Add(Skipped(ReadinessChecks.FirebaseCoherence, "Firebase not installed"));
@@ -199,15 +199,11 @@ namespace Sorolla.Palette.Editor
         }
 
         /// <summary>
-        ///     A missing config file breaks Firebase initialization, so it is an Error in Full mode where
-        ///     Firebase ships, and a warning in Prototype where it is optional. Whether the row is graded at
-        ///     all is not this producer's question - the catalog gate owns it, and the evaluated model is
-        ///     what the report grades. (A config file belonging to a DIFFERENT app is a proven defect in
-        ///     either mode, so those sites call Error directly.)
+        ///     A missing config file breaks the required Firebase baseline in either mode. Whether the row is
+        ///     graded at all is not this producer's question - the catalog gate owns it, and the evaluated
+        ///     model is what the report grades.
         /// </summary>
-        static ValidationResult MissingConfig(ReadinessCheck category, string message, string fix) =>
-            SorollaSettings.IsPrototype
-                ? Warning(category, message, fix)
-                : Error(category, message, fix);
+        internal static ValidationResult MissingConfig(ReadinessCheck category, string message, string fix) =>
+            Error(category, message, fix);
     }
 }

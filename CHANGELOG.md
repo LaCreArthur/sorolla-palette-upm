@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.4] - 2026-08-06
+
+### Changed
+
+- Firebase App, Analytics, Crashlytics, and Remote Config are now required in both Prototype and
+  Full modes. Existing Prototype projects must provision the active platform's Firebase config
+  file. Package import, mode switching, and Refresh repair the complete suite automatically.
+- Launch Readiness and Vitals now grade Firebase package completeness and active-platform config in
+  Prototype exactly as they do in Full. Missing, partial, unreadable, ambiguous, or wrong-app
+  Firebase setup no longer disappears or downgrades in Prototype.
+
+### Removed
+
+- The Prototype-only optional Firebase state and manual Install action. Firebase now has one
+  required installation and validation path in every mode.
+
 ## [4.0.3] - 2026-08-05
 
 Post-campaign fix batch from the v4.0 studio QA campaign.

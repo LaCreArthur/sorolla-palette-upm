@@ -289,10 +289,10 @@ All defines are auto-managed - never set manually. Runtime mode is not a scripti
 ## Mode System
 
 ### Prototype Mode
-- **Required for Sorolla prototype builds**: GameAnalytics, Facebook SDK
-- **Recommended (optional, kept if present)**: Firebase, AppLovin MAX — both are `SdkRequirement.FullRequired`,
-  so the installer does not add them in Prototype but never uninstalls them either. Install Firebase if you
-  want Analytics / Remote Config / Crashlytics in a prototype; a bare prototype without it is valid.
+- **Required for Sorolla prototype builds**: GameAnalytics, Facebook SDK, Firebase App, Firebase
+  Analytics, Firebase Crashlytics, Firebase Remote Config
+- **Optional, kept if present**: AppLovin MAX uses `SdkRequirement.FullRequired`, so the installer
+  does not add it in Prototype but never uninstalls it either.
 - **Use case**: publisher review builds, CPI tests, gameplay iteration
 
 ### Full Mode
@@ -350,11 +350,11 @@ Palette.TrackEvent("post_score", new Dictionary<string, object>
 Palette.Level.Complete(3, world: 1, score: 1500,
     extraParams: new Dictionary<string, object> { { "duration_sec", 45 } })
     ├── GameAnalyticsAdapter.TrackProgressionEvent()  ← Always (GA schema)
-    └── FirebaseAdapter.TrackProgressionEvent()       ← If enabled (GA4 level_end + extraParams)
+    └── FirebaseAdapter.TrackProgressionEvent()       ← GA4 level_end + extraParams
 
 Palette.Economy.Earn(CurrencyId.Coins, 50, EconomySource.DailyReward, itemId: "daily_login")
     ├── GameAnalyticsAdapter.TrackResourceEvent()  ← Always (GA schema)
-    └── FirebaseAdapter.TrackResourceEvent()       ← If enabled (earn_virtual_currency)
+    └── FirebaseAdapter.TrackResourceEvent()       ← earn_virtual_currency
 ```
 
 ### Ad Revenue

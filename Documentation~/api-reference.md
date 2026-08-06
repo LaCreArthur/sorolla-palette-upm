@@ -119,7 +119,7 @@ public static bool AutoActivateRemoteConfigUpdates { get; set; }
 Package version of the Sorolla Palette SDK.
 
 ```csharp title="Declaration"
-public const string SdkVersion = "4.0.0"
+public const string SdkVersion = "4.0.4"
 ```
 ### Methods
 #### ShowPrivacyOptions(Action)
@@ -720,12 +720,12 @@ public class SorollaConfig : ScriptableObject
 
 ### Fields
 #### isPrototypeMode
-Prototype = GameAnalytics + Facebook, with Firebase and AppLovin MAX optional.
-Full = Core + MAX + Adjust + Firebase. Set via the Configuration window.
+Prototype = GameAnalytics + Facebook + Firebase.
+Full = Prototype + MAX + Adjust. Set via the Configuration window.
 
 ```csharp title="Declaration"
 [Header("Mode")]
-[Tooltip("Prototype = GameAnalytics + Facebook | Full = Prototype + Firebase + MAX + Adjust")]
+[Tooltip("Prototype = GameAnalytics + Facebook + Firebase | Full = Prototype + MAX + Adjust")]
 public bool isPrototypeMode
 ```
 #### rewardedAdUnit
