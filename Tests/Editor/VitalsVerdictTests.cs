@@ -16,6 +16,10 @@ namespace Sorolla.Palette.Editor.Tests
         static SorollaDiagnosticRow Row(string group, string name, SorollaDiagnosticSeverity severity) =>
             new SorollaDiagnosticRow(group, name, severity, "detail", SorollaDiagnosticKind.Required);
 
+        static SorollaDiagnosticRow ObservedRow(
+            string group, string name, SorollaDiagnosticSeverity severity) =>
+            new SorollaDiagnosticRow(group, name, severity, "detail", SorollaDiagnosticKind.Observed);
+
         static List<SorollaDiagnosticRow> Rows(params SorollaDiagnosticRow[] rows) =>
             new List<SorollaDiagnosticRow>(rows);
 
@@ -82,6 +86,28 @@ namespace Sorolla.Palette.Editor.Tests
             Assert.AreEqual("NOT PROVEN", SorollaDiagnostics.VerdictWord(notProven));
             Assert.AreNotEqual("HEALTHY", SorollaDiagnostics.VerdictWord(notProven));
             Assert.AreEqual("not_proven", SorollaDiagnostics.VerdictToken(SorollaVitalsVerdict.NotProven));
+        }
+
+        [Test]
+        public void HealthyDetails_ShowRequiredPassAndInfoOnly()
+        {
+            Assert.IsTrue(SorollaDebugMenuOverlay.ShowsInHealthyDetails(
+                Row("Firebase", "Core", SorollaDiagnosticSeverity.Pass)));
+            Assert.IsTrue(SorollaDebugMenuOverlay.ShowsInHealthyDetails(
+                Row("Firebase", "Analytics", SorollaDiagnosticSeverity.Pass)));
+            Assert.IsTrue(SorollaDebugMenuOverlay.ShowsInHealthyDetails(
+                Row("Firebase", "Crashlytics", SorollaDiagnosticSeverity.Pass)));
+            Assert.IsTrue(SorollaDebugMenuOverlay.ShowsInHealthyDetails(
+                Row("Firebase", "Remote Config", SorollaDiagnosticSeverity.Info)));
+
+            Assert.IsFalse(SorollaDebugMenuOverlay.ShowsInHealthyDetails(
+                Row("Firebase", "Core", SorollaDiagnosticSeverity.Fail)));
+            Assert.IsFalse(SorollaDebugMenuOverlay.ShowsInHealthyDetails(
+                Row("Firebase", "Core", SorollaDiagnosticSeverity.Warning)));
+            Assert.IsFalse(SorollaDebugMenuOverlay.ShowsInHealthyDetails(
+                Row("Firebase", "Core", SorollaDiagnosticSeverity.Waiting)));
+            Assert.IsFalse(SorollaDebugMenuOverlay.ShowsInHealthyDetails(
+                ObservedRow("Activity", "Custom events", SorollaDiagnosticSeverity.Pass)));
         }
 
         [Test]

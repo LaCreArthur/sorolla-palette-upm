@@ -178,6 +178,21 @@
 .sorolla-debugmenu-count-pass { color: rgb(126, 226, 164); }
 .sorolla-debugmenu-count-zero { color: rgb(82, 92, 107); } /* #525c6b */
 
+.sorolla-debugmenu-healthy-toggle {
+    align-self: flex-start;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    color: rgb(126, 226, 164);
+    font-size: 11px;
+    -unity-font-style: bold;
+    padding: 4px 0 8px 0;
+    margin: 0 0 4px 0;
+}
+
+.sorolla-debugmenu-healthy-toggle:hover {
+    color: rgb(183, 241, 204);
+}
+
 .sorolla-debugmenu-tabs {
     flex-direction: row;
 }

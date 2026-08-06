@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.5] - 2026-08-06
+
+### Changed
+
+- Runtime Vitals can reveal compact details for every required healthy check, including Firebase
+  Core, Analytics, Crashlytics, and Remote Config, without copying the report or restoring the old
+  multi-filter Overview screen.
+
 ## [4.0.4] - 2026-08-06
 
 ### Changed

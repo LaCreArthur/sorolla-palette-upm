@@ -20,6 +20,7 @@ namespace Sorolla.Palette
 
         int _internalUnlockTaps;
         float _internalUnlockFirstTapTime;
+        bool _showHealthyChecks;
 
         internal VisualElement BuildReportTab(List<SorollaDiagnosticRow> rows)
         {
@@ -40,6 +41,7 @@ namespace Sorolla.Palette
             SorollaVitalsVerdictReport verdict = SorollaDiagnostics.ComputeVerdict(rows);
 
             host.Add(BuildVerdictHero(verdict));
+            host.Add(BuildHealthyChecksSection(rows));
             host.Add(BuildContextLine());
             host.Add(BuildFixTheseSection(rows));
             VisualElement sorollaSection = BuildSendToSorollaSection(rows);
@@ -114,6 +116,69 @@ namespace Sorolla.Palette
             item.AddToClassList("sorolla-debugmenu-countstrip-item");
             item.AddToClassList(count > 0 || alwaysColored ? colorClass : "sorolla-debugmenu-count-zero");
             return item;
+        }
+
+        // ── Healthy check details ─────────────────────────────────────────
+
+        VisualElement BuildHealthyChecksSection(List<SorollaDiagnosticRow> rows)
+        {
+            var section = new VisualElement();
+            var body = new VisualElement();
+            body.AddToClassList("sorolla-debugmenu-matrix-card");
+
+            int count = 0;
+            foreach (SorollaDiagnosticRow row in rows)
+            {
+                if (!ShowsInHealthyDetails(row)) continue;
+                body.Add(BuildHealthyCheckRow(row));
+                count++;
+            }
+
+            var toggle = new Button();
+            toggle.AddToClassList("sorolla-debugmenu-healthy-toggle");
+
+            void SetExpanded(bool expanded)
+            {
+                _showHealthyChecks = expanded;
+                body.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None;
+                toggle.text = expanded
+                    ? $"⌄ Hide healthy checks ({count})"
+                    : $"› Show healthy checks ({count})";
+            }
+
+            toggle.clicked += () => SetExpanded(!_showHealthyChecks);
+            section.Add(toggle);
+            section.Add(body);
+            SetExpanded(_showHealthyChecks);
+            return section;
+        }
+
+        internal static bool ShowsInHealthyDetails(in SorollaDiagnosticRow row) =>
+            SorollaDiagnostics.DrivesHealth(row) && !SorollaDiagnostics.NeedsAttention(row.Severity);
+
+        static VisualElement BuildHealthyCheckRow(in SorollaDiagnosticRow row)
+        {
+            var line = new VisualElement();
+            line.AddToClassList("sorolla-debugmenu-matrix-row");
+
+            var badge = new Label(SorollaDiagnostics.SeverityLabel(row.Severity));
+            badge.AddToClassList("sorolla-debugmenu-severity-badge");
+            badge.AddToClassList(BadgeSeverityClass(row.Severity));
+            line.Add(badge);
+
+            var textColumn = new VisualElement();
+            textColumn.AddToClassList("sorolla-debugmenu-matrix-row-text");
+
+            var name = new Label($"{row.Group} · {row.Name}");
+            name.AddToClassList("sorolla-debugmenu-matrix-row-name");
+            textColumn.Add(name);
+
+            var detail = new Label(row.Detail);
+            detail.AddToClassList("sorolla-debugmenu-matrix-row-detail");
+            textColumn.Add(detail);
+
+            line.Add(textColumn);
+            return line;
         }
 
         // ── SDK context + responsibility division ─────────────────────────
