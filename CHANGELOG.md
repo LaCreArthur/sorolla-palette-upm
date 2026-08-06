@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.6] - 2026-08-06
+
+### Changed
+
+- The default iOS `NSUserTrackingUsageDescription` written at build time now states the purpose
+  with a concrete example ("This identifier lets us show you more relevant ads and measure ad
+  performance - for example, ads for games similar to this one."), matching App Review's
+  Guideline 5.1.1 expectations. A string already set by the game is never overwritten. The
+  GDPR guide's recommended MAX Usage Description text matches.
+
 ## [4.0.5] - 2026-08-06
 
 ### Changed

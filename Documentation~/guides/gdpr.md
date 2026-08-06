@@ -44,9 +44,10 @@ Practical effect: an EEA user emits one identified `first_open` before the CMP r
 2. Under **Mediated Networks**, install **Google Ad Manager** (or Google AdMob). This is required - MAX uses the Google Mobile Ads SDK to render the UMP consent form. Without it, only the MAX privacy popup appears, not the GDPR CMP dialog.
 3. Enable **MAX Terms and Privacy Policy Flow**
 4. Set **Privacy Policy URL** (your company's policy)
-5. Set **User Tracking Usage Description**:
+5. Set **User Tracking Usage Description**. App Review (Guideline 5.1.1) wants the purpose plus a
+   concrete example; vague strings get rejected:
    ```
-   This identifier will be used to deliver personalized ads to you.
+   This identifier lets us show you more relevant ads and measure ad performance - for example, ads for games similar to this one.
    ```
 6. Click **Save**
 

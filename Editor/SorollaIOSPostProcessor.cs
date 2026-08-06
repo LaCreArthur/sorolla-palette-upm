@@ -23,7 +23,7 @@ namespace Sorolla.Palette.Editor
             // Check if it already exists to avoid overwriting custom text if set elsewhere
             if (rootDict["NSUserTrackingUsageDescription"] == null)
             {
-                string trackingDesc = "Your data will be used to provide a better and personalized ad experience.";
+                string trackingDesc = "This identifier lets us show you more relevant ads and measure ad performance - for example, ads for games similar to this one.";
                 rootDict.SetString("NSUserTrackingUsageDescription", trackingDesc);
                 Debug.Log("[Palette] Added NSUserTrackingUsageDescription to Info.plist");
             }

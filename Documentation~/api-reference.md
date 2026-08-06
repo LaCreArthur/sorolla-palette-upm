@@ -119,7 +119,7 @@ public static bool AutoActivateRemoteConfigUpdates { get; set; }
 Package version of the Sorolla Palette SDK.
 
 ```csharp title="Declaration"
-public const string SdkVersion = "4.0.5"
+public const string SdkVersion = "4.0.6"
 ```
 ### Methods
 #### ShowPrivacyOptions(Action)
